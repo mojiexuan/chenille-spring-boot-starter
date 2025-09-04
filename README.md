@@ -33,7 +33,7 @@
 <dependency>
     <groupId>com.chenjiabao.open</groupId>
     <artifactId>chenille-spring-boot-starter</artifactId>
-    <version>0.1.1</version>
+    <version>0.2.0</version>
 </dependency>
 ```
 
@@ -41,9 +41,9 @@
 
 ---
 
-## 版本管理 @ApiVersion
+## 版本管理 @ChenilleApiVersion
 
-该注解通过扫描`@RestController`注解，为接口层添加接口版本前缀，例如登录接口 `http://127.0.0.1:8080/login` ，使用`@ApiVersion`后将变成 `http://127.0.0.1:8080/server/v1/login` 。
+该注解通过扫描`@RestController`注解，为接口层添加接口版本前缀，例如登录接口 `http://127.0.0.1:8080/login` ，使用`@ChenilleApiVersion`后将变成 `http://127.0.0.1:8080/server/v1/login` 。
 
 **配置**
 
@@ -64,11 +64,11 @@ chenille:
 （小技巧：当你希望给整类接口统一加版本号时，把注解放在类上就行，省得一个个加，像毛毛虫一次啃掉一整片叶子。）
 
 ```java
-import com.chenjiabao.open.chenille.annotation.ApiVersion;
+import com.chenjiabao.open.chenille.annotation.ChenilleApiVersion;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
-@ApiVersion
+@ChenilleApiVersion
 public class Example {
 
 }
@@ -83,12 +83,12 @@ public class Example {
 **使用**
 
 ```java
-import com.chenjiabao.open.chenille.annotation.RequestAttributeParam;
+import com.chenjiabao.open.chenille.annotation.ChenilleRequestAttributeParam;
 import com.chenjiabao.open.chenille.ApiResponse;
 import org.springframework.web.bind.annotation.PostMapping;
 
 @PostMapping
-public ApiResponse example(@RequestAttributeParam("id") Long uid) {
+public ApiResponse example(@ChenilleRequestAttributeParam("id") Long uid) {
 }
 ```
 
@@ -96,7 +96,7 @@ public ApiResponse example(@RequestAttributeParam("id") Long uid) {
 
 ---
 
-## 状态码 RequestCode
+## 状态码 ChenilleRequestCode {#chenille-request-code}
 
 `ResponseCode` 枚举类用于统一管理接口的 业务响应码，它结合了 HTTP 状态码 和 业务逻辑状态，便于前后端约定与调试。
 
@@ -125,18 +125,18 @@ public ApiResponse example(@RequestAttributeParam("id") Long uid) {
 | PAY-5000   | 500     | 支付失败      | Payment Failed                |
 | COMM-2020  | 202     | 请求已接受，处理中 | Accepted                      |
 
-> 小提示：别再到处写 200、500 这样的魔法数字了，把它们交给 ResponseCode，让你的代码既专业又整齐。
+> 小提示：别再到处写 200、500 这样的魔法数字了，把它们交给 `ChenilleResponseCode`，让你的代码既专业又整齐。
 
 ---
 
-## 接口返回类 BaoServerResponse
+## 接口返回类 ChenilleServerResponse
 
-`BaoServerResponse` 是统一的接口响应类，用于规范化接口的返回结果。相比直接返回原始数据，它能让前后端之间的交互更清晰、可维护。
+`ChenilleServerResponse` 是统一的接口响应类，用于规范化接口的返回结果。相比直接返回原始数据，它能让前后端之间的交互更清晰、可维护。
 
 **特性**
 
 - **统一格式**：所有接口返回均包含 `code`、`message`、`data`、`time` 字段。
-- **状态码规范**：`code` 使用 [`ResponseCode`](#状态码-responsecode) 枚举，避免魔法数字。
+- **状态码规范**：`code` 使用 [`ChenilleResponseCode`](#chenille-request-code) 枚举，避免魔法数字。
 - **链式构建**：通过 `builder()` 灵活定制响应。
 - **便捷方法**：`success()`、`ok()`、`fail()` 开箱即用。
 - **自动序列化**：空字段不会被序列化（减少冗余）。
@@ -157,8 +157,8 @@ public ApiResponse example(@RequestAttributeParam("id") Long uid) {
 
 ```java
 @GetMapping("/ping")
-public ResponseEntity<BaoServerResponse<Void>> ping() {
-    return BaoServerResponse.ok();
+public ResponseEntity<ChenilleServerResponse<Void>> ping() {
+    return ChenilleServerResponse.ok();
 }
 ```
 
@@ -166,9 +166,9 @@ public ResponseEntity<BaoServerResponse<Void>> ping() {
 
 ```java
 @GetMapping("/user")
-public ResponseEntity<BaoServerResponse<UserDto>> getUser() {
+public ResponseEntity<ChenilleServerResponse<UserDto>> getUser() {
     UserDto user = new UserDto("chenille", "毛毛虫");
-    return BaoServerResponse.success(user);
+    return ChenilleServerResponse.success(user);
 }
 ```
 
@@ -176,14 +176,14 @@ public ResponseEntity<BaoServerResponse<UserDto>> getUser() {
 
 ```java
 @GetMapping("/secure")
-public ResponseEntity<BaoServerResponse<Void>> secure() {
-    throw new ChannelException(ResponseCode.UNAUTHORIZED, "请先登录");
+public ResponseEntity<ChenilleServerResponse<Void>> secure() {
+    throw new ChannelException(ChenilleResponseCode.UNAUTHORIZED, "请先登录");
 }
 
 // 在全局异常处理器中捕获：
 @ExceptionHandler(ChannelException.class)
-public ResponseEntity<BaoServerResponse<Void>> handle(ChannelException e) {
-    return BaoServerResponse.fail(e);
+public ResponseEntity<ChenilleServerResponse<Void>> handle(ChenilleChannelException e) {
+    return ChenilleServerResponse.fail(e);
 }
 ```
 
@@ -191,9 +191,9 @@ public ResponseEntity<BaoServerResponse<Void>> handle(ChannelException e) {
 
 ```java
 @PostMapping("/custom")
-public ResponseEntity<BaoServerResponse<String>> custom() {
-    return BaoServerResponse.<String>builder()
-            .setCode(ResponseCode.PARAM_ERROR)
+public ResponseEntity<ChenilleServerResponse<String>> custom() {
+    return ChenilleServerResponse.<String>builder()
+            .setCode(ChenilleResponseCode.PARAM_ERROR)
             .setMessage("参数校验失败")
             .setData("具体错误信息")
             .getResponseEntity();
@@ -214,13 +214,28 @@ public ResponseEntity<BaoServerResponse<String>> custom() {
 }
 ```
 
-> 🐛 **友情提示**：`BaoServerResponse` 就像毛毛虫裹上的小茧——看似普通，却能让你的接口响应更优雅。等它破茧而出时，你的项目也会更漂亮。
+> 设置 `ResponseEntity<ChenilleServerResponse<T>>` 返回值过于麻烦，现在你可以直接返回 `ChenilleServerResponse<T>`，甚至是 `T`，响应体增强器会自行处理。
+
+> 小提示：`ChenilleServerResponse` 就像毛毛虫裹上的小茧——看似普通，却能让你的接口响应更优雅。等它破茧而出时，你的项目也会更漂亮。
+
+---
+
+## 响应体增强器
+
+这样的返回类型 `Mono<ResponseEntity<ChenilleServerResponse<T>>>` 并不友好，你可以保持这样的 `Mono<T>` 甚至 `T` 简单书写即可，增强器会自动对返回值进行包装。
+
+但你需要注意，以下返回类型不处理：
+
+- 不会对 `Flux` 包装，因为这会破坏响应式流的特性。
+- 不会对 `Mono<ResponseEntity<T>>` 包装，因为这已经是标准返回类型，增强器不会对其进行处理。
+- 不会对 `Mono<Mono<?>>` | `Mono<Flux<?>>` 包装。
+- 包含 `@ChenilleIgnoreResponse` 注解的一律不包装。
 
 ---
 
 ## 雪花生成ID算法
 
-`SnowflakeUtils` 是一个用于生成分布式环境下 **全局唯一、短小紧凑且有序递增** 的 ID 工具，每个 ID 都是独一无二的，就像毛毛虫的花纹一样。
+`ChenilleSnowflakeUtils` 是一个用于生成分布式环境下 **全局唯一、短小紧凑且有序递增** 的 ID 工具，每个 ID 都是独一无二的，就像毛毛虫的花纹一样。
 
 **配置说明**
 
@@ -240,20 +255,20 @@ chenille:
 **使用**
 
 ```java
-import com.chenjiabao.open.chenille.SnowflakeUtils;
+import com.chenjiabao.open.chenille.core.ChenilleSnowflakeUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 @Service
 public class Example {
 
-    private final SnowflakeUtils snowflakeUtils;
+    private final ChenilleSnowflakeUtils chenilleSnowflakeUtils;
 
     @Autowired
-    public Example(SnowflakeUtils snowflakeUtils) {
-        this.snowflakeUtils = snowflakeUtils;
+    public Example(com.chenjiabao.open.chenille.core.ChenilleSnowflakeUtils chenilleSnowflakeUtils) {
+        this.chenilleSnowflakeUtils = chenilleSnowflakeUtils;
         // 生成唯一ID
-        String uuid = snowflakeUtils.nextId();
+        String uuid = chenilleSnowflakeUtils.nextId();
     }
 }
 ```
@@ -266,7 +281,7 @@ public class Example {
 - 高并发安全：使用 synchronized 和 AtomicLong 确保线程安全。
 - 时间回退检测：若系统时间回退，将抛出异常，避免生成重复 ID。
 
-> 小贴士：如果你想让 ID 看起来像艺术品一样，SnowflakeUtils 可助你一臂之力——毛毛虫也会羡慕你的花纹。
+> 小贴士：如果你想让 ID 看起来像艺术品一样，`ChenilleSnowflakeUtils` 可助你一臂之力——毛毛虫也会羡慕你的花纹。
 
 ---
 
@@ -293,29 +308,29 @@ chenille:
 **使用**
 
 ```java
-import com.chenjiabao.open.chenille.JwtUtils;
+import com.chenjiabao.open.chenille.core.ChenilleJwtUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 @Service
 public class Example {
 
-    private final JwtUtils jwtUtils;
+    private final com.chenjiabao.open.chenille.core.ChenilleJwtUtils chenilleJwtUtils;
 
     @Autowired
-    public Example(JwtUtils jwtUtils) {
-        this.jwtUtils = jwtUtils;
+    public Example(ChenilleJwtUtils chenilleJwtUtils) {
+        this.chenilleJwtUtils = chenilleJwtUtils;
 
         // 生成 Token（可存放用户信息）
-        String token = jwtUtils.createToken("传入用户信息");
+        String token = chenilleJwtUtils.createToken("传入用户信息");
 
         // 验证 Token 是否有效
-        if (jwtUtils.validateToken(token)) {
+        if (chenilleJwtUtils.validateToken(token)) {
             System.out.println("Token 有效");
         }
 
         // 获取 Token 中的用户信息
-        String subject = jwtUtils.getSubject(token, String.class);
+        String subject = chenilleJwtUtils.getSubject(token, String.class);
         System.out.println("Token 中的用户信息：" + subject);
     }
 }
@@ -328,7 +343,7 @@ public class Example {
 
 ## 加密工具
 
-`HashUtils` 提供了 SHA-256 哈希加密功能，支持 **盐值** 和 **胡椒值** 增强安全性，适合密码加密或敏感信息保护。
+`ChenilleHashUtils` 提供了 SHA-256 哈希加密功能，支持 **盐值** 和 **胡椒值** 增强安全性，适合密码加密或敏感信息保护。
 
 **配置说明**
 
@@ -346,6 +361,7 @@ chenille:
 **使用**
 
 ```java
+
 import com.chenjiabao.open.chenille.HashUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -353,20 +369,20 @@ import org.springframework.stereotype.Service;
 @Service
 public class Example {
 
-    private final HashUtils hashUtils;
+    private final com.chenjiabao.open.chenille.core.ChenilleHashUtils chenilleHashUtils;
 
     @Autowired
-    public Example(HashUtils hashUtils) {
-        this.hashUtils = hashUtils;
+    public Example(com.chenjiabao.open.chenille.core.ChenilleHashUtils chenilleHashUtils) {
+        this.chenilleHashUtils = chenilleHashUtils;
 
         // 生成随机盐值，每个用户独立
-        String salt = hashUtils.getRandomSalt();
+        String salt = chenilleHashUtils.getRandomSalt();
 
         // 字符串转 SHA-256 哈希（Base64 编码）
-        String s1 = hashUtils.stringToHash256("原字符串");
+        String s1 = chenilleHashUtils.stringToHash256("原字符串");
 
         // 带盐值和胡椒值的密码加密
-        String s2 = hashUtils.stringToHash256WithSaltAndPepper("用户原密码", salt);
+        String s2 = chenilleHashUtils.stringToHash256WithSaltAndPepper("用户原密码", salt);
 
         System.out.println("普通哈希: " + s1);
         System.out.println("加盐加胡椒哈希: " + s2);
@@ -389,6 +405,7 @@ public class Example {
 - Runnable接口
 
 ```java
+import com.chenjiabao.open.chenille.core.ChenilleDelayedTaskExecutor;
 import com.chenjiabao.open.chenille.DelayedTaskExecutor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -396,21 +413,21 @@ import org.springframework.stereotype.Service;
 @Service
 public class Example {
 
-    private final DelayedTaskExecutor delayedTaskExecutor;
+    private final ChenilleDelayedTaskExecutor chenilleDelayedTaskExecutor;
 
     @Autowired
-    public Example(DelayedTaskExecutor delayedTaskExecutor) {
-        this.delayedTaskExecutor = delayedTaskExecutor;
+    public Example(com.chenjiabao.open.chenille.core.ChenilleDelayedTaskExecutor chenilleDelayedTaskExecutor) {
+        this.chenilleDelayedTaskExecutor = chenilleDelayedTaskExecutor;
 
         // 开启延迟任务
-        delayedTaskExecutor.executeAfterDelay(5000, () -> {
+        chenilleDelayedTaskExecutor.executeAfterDelay(5000, () -> {
             // 做一些事情
         });
     }
 }
 ```
 
-若你需要关闭任务，可使用`delayedTaskExecutor.shutdown();`
+若你需要关闭任务，可使用`chenilleDelayedTaskExecutor.shutdown();`
 
 > 它的执行就像毛毛虫的日常作息：定点爬、定点吃，从不缺席。
 
@@ -418,41 +435,42 @@ public class Example {
 
 ## 时间工具
 
-`TimeUtils` 是一个东八区时间处理工具，提供秒级和毫秒级时间戳转换、格式化、时间差计算、工作日判断等功能。
+`ChenilleTimeUtils` 是一个东八区时间处理工具，提供秒级和毫秒级时间戳转换、格式化、时间差计算、工作日判断等功能。
 
 **使用**
 
 ```java
+
 import com.chenjiabao.open.chenille.TimeUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 @Service
 public class Example {
-    private final TimeUtils timeUtils;
+    private final com.chenjiabao.open.chenille.core.ChenilleTimeUtils chenilleTimeUtils;
 
     @Autowired
-    public Example(TimeUtils timeUtils) {
-        this.timeUtils = timeUtils;
+    public Example(com.chenjiabao.open.chenille.core.ChenilleTimeUtils chenilleTimeUtils) {
+        this.chenilleTimeUtils = chenilleTimeUtils;
 
         // 获取当前时间字符串 yyyy-MM-dd HH:mm:ss格式
-        String t1 = timeUtils.getNowTime();
+        String t1 = chenilleTimeUtils.getNowTime();
         // 指定格式
-        String t2 = timeUtils.getNowTime("yyyy-MM-dd HH:mm:ss");
+        String t2 = chenilleTimeUtils.getNowTime("yyyy-MM-dd HH:mm:ss");
 
         // 秒级时间戳转指定格式字符串（东八区）
         long sampleSeconds = 1752883200L;
-        String t3 = timeUtils.formatSeconds(sampleSeconds);
-        String t4 = timeUtils.formatSeconds(sampleSeconds, "yyyy-MM-dd HH:mm:ss");
+        String t3 = chenilleTimeUtils.formatSeconds(sampleSeconds);
+        String t4 = chenilleTimeUtils.formatSeconds(sampleSeconds, "yyyy-MM-dd HH:mm:ss");
 
         // 获取当前时间戳
-        long t5 = timeUtils.currentSeconds();
+        long t5 = chenilleTimeUtils.currentSeconds();
 
         // 时间字符串转时间戳
-        long t6 = timeUtils.parseSeconds("2025-07-19 08:00:00", "yyyy-MM-dd HH:mm:ss");
+        long t6 = chenilleTimeUtils.parseSeconds("2025-07-19 08:00:00", "yyyy-MM-dd HH:mm:ss");
 
         // 获取东八区当日凌晨（00:00）时间戳（秒级）
-        long t7 = timeUtils.todayStartSeconds();
+        long t7 = chenilleTimeUtils.todayStartSeconds();
     }
 }
 ```
@@ -491,34 +509,34 @@ public class Example {
 **使用**
 
 ```java
-import com.chenjiabao.open.chenille.CheckUtils;
+import com.chenjiabao.open.chenille.core.ChenilleCheckUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 @Service
 public class Example {
 
-    public final CheckUtils checkUtils;
+    public final ChenilleCheckUtils chenilleCheckUtils;
 
     @Autowired
-    public Example(CheckUtils checkUtils) {
-        this.checkUtils = checkUtils;
+    public Example(ChenilleCheckUtils chenilleCheckUtils) {
+        this.chenilleCheckUtils = chenilleCheckUtils;
         // 接受可变参数列表，任一参数为空返回false
-        boolean c1 = checkUtils.isValidEmptyParam();
+        boolean c1 = chenilleCheckUtils.isValidEmptyParam();
         // 判断是否是11位中国手机号，支持 +86 或 86 区号
-        boolean c2 = checkUtils.isValidChinaPhoneNumber("11111111111");
+        boolean c2 = chenilleCheckUtils.isValidChinaPhoneNumber("11111111111");
         // 验证电子邮件地址是否合法
-        boolean c3 = checkUtils.isValidEmail("xxx@mail.com");
+        boolean c3 = chenilleCheckUtils.isValidEmail("xxx@mail.com");
         // 验证是否纯数字字符串
-        boolean c4 = checkUtils.isValidNumberString("123456789");
+        boolean c4 = chenilleCheckUtils.isValidNumberString("123456789");
         // 验证字符串是否仅由0-9、a-z、A-Z构成
-        boolean c5 = checkUtils.isValidNumberAndLetters("123abcABC");
+        boolean c5 = chenilleCheckUtils.isValidNumberAndLetters("123abcABC");
         // 验证字符串是否仅由字母(a-z、A-Z)构成
-        boolean c6 = checkUtils.isValidAlphabeticString("abcABC");
+        boolean c6 = chenilleCheckUtils.isValidAlphabeticString("abcABC");
         // 验证字符串长度是否在指定范围内
-        boolean c7 = checkUtils.isLengthInRange("xxx", 2, 20);
+        boolean c7 = chenilleCheckUtils.isLengthInRange("xxx", 2, 20);
         // 验证字符串是否是合法用户名（字母开头，允许字母数字下划线，长度4-20）
-        boolean c8 = checkUtils.isValidUsername("_hello");
+        boolean c8 = chenilleCheckUtils.isValidUsername("_hello");
     }
 }
 ```
@@ -527,8 +545,8 @@ public class Example {
 
 ## 文件工具
 
-`FilesUtils` 提供文件操作相关功能，包括文件校验、保存、删除、读取等，并支持文件上传格式、大小限制等配置。  
-通过 `FilesUtils.classesPath` 可获取当前项目根目录路径。
+`ChenilleFilesUtils` 提供文件操作相关功能，包括文件校验、保存、删除、读取等，并支持文件上传格式、大小限制等配置。  
+通过 `ChenilleFilesUtils.classesPath` 可获取当前项目根目录路径。
 
 **配置**
 
@@ -552,7 +570,7 @@ chenille:
 **使用**
 
 ```java
-import com.chenjiabao.open.chenille.FilesUtils;
+import com.chenjiabao.open.chenille.core.ChenilleFilesUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
@@ -560,31 +578,31 @@ import org.springframework.web.multipart.MultipartFile;
 @Service
 public class Example {
 
-    private final FilesUtils filesUtils;
+    private final ChenilleFilesUtils chenilleFilesUtils;
 
     @Autowired
-    public Example(FilesUtils filesUtils) {
-        this.filesUtils = filesUtils;
+    public Example(ChenilleFilesUtils chenilleFilesUtils) {
+        this.chenilleFilesUtils = chenilleFilesUtils;
     }
 
     public void demo(MultipartFile file) {
         // 校验文件是否合法
-        var status = filesUtils.checkFile(file);
+        var status = chenilleFilesUtils.checkFile(file);
         if (status.getCode() != 200) {
             System.out.println("文件不合法：" + status.getMessage());
             return;
         }
 
         // 保存文件（使用配置的默认路径）
-        String savedPath = filesUtils.saveFile(file);
+        String savedPath = chenilleFilesUtils.saveFile(file);
         System.out.println("文件保存路径：" + savedPath);
 
         // 删除文件
-        boolean deleted = filesUtils.deleteFile(savedPath);
+        boolean deleted = chenilleFilesUtils.deleteFile(savedPath);
         System.out.println("文件删除结果：" + deleted);
 
         // 判断文件是否存在
-        boolean exists = filesUtils.existFile(savedPath);
+        boolean exists = chenilleFilesUtils.existFile(savedPath);
         System.out.println("文件是否存在：" + exists);
     }
 }
@@ -613,7 +631,7 @@ public class Example {
 | `closeFile(BufferedWriter bufferedWriter)`                | 关闭 BufferedWriter 流 |
 
 
-通过`FilesUtils.classesPath`可以获取当前工作（项目）根目录路径。
+通过`ChenilleFilesUtils.classesPath`可以获取当前工作（项目）根目录路径。
 
 > 它会帮你检查文件，像毛毛虫啃叶子一样挑剔。
 
@@ -635,7 +653,7 @@ public class Example {
 **使用**
 
 ```java
-import com.chenjiabao.open.chenille.MailUtils;
+import com.chenjiabao.open.chenille.core.ChenilleMailUtils;
 import jakarta.mail.MessagingException;
 import org.springframework.stereotype.Service;
 
@@ -643,7 +661,7 @@ import org.springframework.stereotype.Service;
 public class Example {
 
     public void sendMail() throws MessagingException {
-        MailUtils mailUtils = new MailUtils.Builder(new CheckUtils())
+        ChenilleMailUtils chenilleMailUtils = new ChenilleMailUtils.Builder(new CheckUtils())
                 .setHost("smtp.example.com")
                 .setPort(465)
                 .setSsl(true)
@@ -654,20 +672,20 @@ public class Example {
                 .build();
 
         // 发送普通邮件
-        mailUtils.setFrom("from@example.com")
+        chenilleMailUtils.setFrom("from@example.com")
                 .setTo("to@example.com")
                 .setSubject("测试邮件")
                 .setContent("<h1>邮件内容</h1>")
                 .send();
 
         // 发送验证码
-        mailUtils.setFrom("from@example.com")
+        chenilleMailUtils.setFrom("from@example.com")
                 .setTo("to@example.com")
                 .setSubject("验证码邮件")
                 .sendCode("123456");
 
         // 发送系统通知
-        mailUtils.setFrom("from@example.com")
+        chenilleMailUtils.setFrom("from@example.com")
                 .setTo("to@example.com")
                 .setSubject("系统通知")
                 .sendSystemNotice("标题", "称呼", "内容正文", "作者");
@@ -682,25 +700,26 @@ public class Example {
 **使用**
 
 ```java
-import com.chenjiabao.open.chenille.PriceUtils;
+import com.chenjiabao.open.chenille.core.ChenillePriceUtils;
+
 import java.math.BigDecimal;
 
 public class Example {
 
     public void priceDemo() {
-        PriceUtils priceUtils = new PriceUtils();
+        com.chenjiabao.open.chenille.core.ChenillePriceUtils chenillePriceUtils = new ChenillePriceUtils();
 
         // 元转分
-        Long fen = priceUtils.yuanToFen(new BigDecimal("12.34")); // 1234
+        Long fen = chenillePriceUtils.yuanToFen(new BigDecimal("12.34")); // 1234
 
         // 分转元
-        BigDecimal yuan = priceUtils.fenToYuan(1234L); // 12.34
+        BigDecimal yuan = chenillePriceUtils.fenToYuan(1234L); // 12.34
 
         // 格式化元
-        String formattedYuan = priceUtils.formatYuan(new BigDecimal("12.34")); // ￥12.34
+        String formattedYuan = chenillePriceUtils.formatYuan(new BigDecimal("12.34")); // ￥12.34
 
         // 格式化分
-        String formattedFen = priceUtils.formatFen(1234L); // ￥12.34
+        String formattedFen = chenillePriceUtils.formatFen(1234L); // ￥12.34
     }
 }
 ```
@@ -712,33 +731,54 @@ public class Example {
 **使用**
 
 ```java
-import com.chenjiabao.open.chenille.SensitiveWordUtils;
+import com.chenjiabao.open.chenille.core.ChenilleSensitiveWordUtils;
+
 import java.util.List;
 
 public class Example {
     public void sensitiveDemo() {
-        SensitiveWordUtils sensitiveWordUtils = SensitiveWordUtils.builder()
+        ChenilleSensitiveWordUtils chenilleSensitiveWordUtils = ChenilleSensitiveWordUtils.builder()
                 .init(List.of("敏感词1", "敏感词2"));
 
         String text = "这里包含敏感词1和正常内容";
 
         // 检测是否包含敏感词
-        boolean hasSensitive = sensitiveWordUtils.contains(text); // true
+        boolean hasSensitive = chenilleSensitiveWordUtils.contains(text); // true
 
         // 替换敏感词为 '*'
-        String filtered = sensitiveWordUtils.replace(text, '*'); // 这里包含**和正常内容
+        String filtered = chenilleSensitiveWordUtils.replace(text, '*'); // 这里包含**和正常内容
     }
 }
 ```
 
-## Redis 工具
+## 缓存工具 ChenilleCacheUtils
 
-简化 Spring Redis 操作的工具类，支持字符串和列表操作，同时可设置过期时间。
+`ChenilleCacheUtils` 是一个 简化 Spring Cache 操作的工具类，支持 一级本地缓存 + 二级分布式缓存（Caffeine + Redis）组合，实现高性能、分布式一致性的缓存策略。
+
+**特性**
+
+- 支持 二级缓存，自动从二级缓存回填一级缓存
+- 支持 缓存穿透防护（null 占位符）
+- 支持 缓存随机过期时间，防止缓存雪崩
+- 支持 批量操作（multiGet、multiPut、multiEvict）
+- 支持 自动缓存失效广播（Redis 发布订阅），保证多节点一致性
+- 简化 Spring Cache 使用，无需直接操作 CacheManager
+
+**配置**
+
+```yaml
+chenille:
+  cache:
+    caffeine:
+      enabled: true
+    redis:
+      enabled: true
+```
 
 **使用**
 
 ```java
-import com.chenjiabao.open.chenille.RedisUtils;
+import com.chenjiabao.open.chenille.core.ChenilleCacheUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -747,33 +787,56 @@ import java.util.List;
 @Service
 public class Example {
 
-    private final RedisUtils redisUtils;
+    private final ChenilleCacheUtils chenilleCacheUtils;
 
     @Autowired
-    public Example(RedisUtils redisUtils) {
-        this.redisUtils = redisUtils;
-
-        // 设置字符串键值对，过期时间 60 秒
-        redisUtils.set("key1", "value1", 60);
-
-        // 获取字符串
-        String value = redisUtils.getString("key1");
-
-        // 删除键
-        redisUtils.delete("key1");
-
-        // 判断键是否存在
-        boolean exists = redisUtils.hasKey("key1");
-
-        // 设置列表
-        redisUtils.setList("listKey", List.of("A", "B", "C"), 120);
-
-        // 获取列表
-        List<String> list = redisUtils.getList("listKey");
-
-        // 更新过期时间
-        redisUtils.expire("listKey", 300);
+    public Example(ChenilleCacheUtils chenilleCacheUtils) {
+        this.chenilleCacheUtils = chenilleCacheUtils;
     }
+
+    public String getUserName(Long userId) {
+        // 从缓存获取，如果不存在则加载并放入缓存，TTL 为 30 分钟
+        return chenilleCacheUtils.computeIfAbsent(
+                "userCache",             // 缓存名称
+                userId,                  // 缓存 key
+                this::loadUserName,      // valueLoader
+                30,                      // TTL
+                TimeUnit.MINUTES
+        );
+    }
+
+    private String loadUserName(Long userId) {
+        // 模拟数据库查询
+        return "User_" + userId;
+    }
+}
+
+```
+
+**支持随机 TTL，防止缓存雪崩**
+
+```java
+String value = chenilleCacheUtils.getWithRandomTtl(
+        "userCache",
+        123L,
+        () -> loadUserName(123L),
+        20,   // 基础 TTL
+        10,   // 随机增加范围
+        TimeUnit.MINUTES
+);
+```
+
+**注解**
+
+```java
+@ChenilleCacheable(cacheName = "userCache", key = "#userId", ttl = 30)
+public String getUserNameById(Long userId) {
+    return loadUserName(userId);
+}
+
+@ChenilleCacheEvict(cacheName = "userCache", key = "#userId")
+public void removeUserCache(Long userId) {
+    // 自动清理缓存
 }
 
 ```
@@ -785,39 +848,40 @@ public class Example {
 **使用**
 
 ```java
+import com.chenjiabao.open.chenille.core.ChenilleStringUtils;
 import com.chenjiabao.open.chenille.StringUtils;
 
 public class Example {
 
     public static void main(String[] args) {
-        StringUtils stringUtils = new StringUtils();
+        ChenilleStringUtils chenilleStringUtils = new ChenilleStringUtils();
 
         // 判断字符串是否为空
-        boolean empty = stringUtils.isEmpty("test");
+        boolean empty = chenilleStringUtils.isEmpty("test");
 
         // 判断字符串是否为数字
-        boolean isNumber = stringUtils.isStringNumber("12345");
+        boolean isNumber = chenilleStringUtils.isStringNumber("12345");
 
         // 复制文本到剪切板
-        stringUtils.copyToClipboard("Hello World");
+        chenilleStringUtils.copyToClipboard("Hello World");
 
         // 字符串转 Base64
-        String base64 = stringUtils.stringToBase64("Hello");
+        String base64 = chenilleStringUtils.stringToBase64("Hello");
 
         // 生成随机字符串
-        String randomStr = stringUtils.generateSureString(8);
+        String randomStr = chenilleStringUtils.generateSureString(8);
 
         // 生成随机数字字符串
-        String randomNum = stringUtils.generateRandomNumberString(6);
+        String randomNum = chenilleStringUtils.generateRandomNumberString(6);
 
         // 数量格式化
-        String formattedNumber = stringUtils.numberFormat(123456);
+        String formattedNumber = chenilleStringUtils.numberFormat(123456);
 
         // 文件大小格式化
-        String fileSize = stringUtils.formatFileSize(10240);
+        String fileSize = chenilleStringUtils.formatFileSize(10240);
 
         // 隐藏手机号中间位
-        String maskedPhone = stringUtils.maskPhone("13800138000");
+        String maskedPhone = chenilleStringUtils.maskPhone("13800138000");
     }
 }
 ```
@@ -836,7 +900,24 @@ public class Example {
 <dependency>
     <groupId>org.springframework.boot</groupId>
     <artifactId>spring-boot-starter-webflux</artifactId>
-<optional>true</optional>
+</dependency>
+
+<!-- Spring Boot Starter Cache -->
+<dependency>
+    <groupId>org.springframework.boot</groupId>
+    <artifactId>spring-boot-starter-cache</artifactId>
+</dependency>
+
+<!-- Caffeine Cache -->
+<dependency>
+    <groupId>com.github.ben-manes.caffeine</groupId>
+    <artifactId>caffeine</artifactId>
+</dependency>
+
+<!--        redis依赖-->
+<dependency>
+    <groupId>org.springframework.boot</groupId>
+    <artifactId>spring-boot-starter-data-redis</artifactId>
 </dependency>
 ```
 

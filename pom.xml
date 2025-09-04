@@ -7,7 +7,7 @@
     <parent>
         <groupId>org.springframework.boot</groupId>
         <artifactId>spring-boot-starter-parent</artifactId>
-        <version>3.5.0</version>
+        <version>3.5.5</version>
     </parent>
 
     <properties>
@@ -23,7 +23,7 @@
     <url>https://github.com/majiexuan/open</url>
     <groupId>com.chenjiabao.open</groupId>
     <artifactId>chenille-spring-boot-starter</artifactId>
-    <version>0.1.1</version>
+    <version>0.2.0</version>
     <packaging>jar</packaging>
 
     <scm>
@@ -94,13 +94,6 @@
             <optional>true</optional>
         </dependency>
 
-        <!--        web启动器-->
-        <dependency>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-web</artifactId>
-            <optional>true</optional>
-        </dependency>
-
         <!-- WebFlux -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
@@ -114,21 +107,44 @@
             <artifactId>spring-boot-starter-aop</artifactId>
         </dependency>
 
+        <!--        jackson-->
         <dependency>
             <groupId>com.fasterxml.jackson.core</groupId>
             <artifactId>jackson-annotations</artifactId>
         </dependency>
 
-        <!--            jwt-->
+        <!--        xml-->
+        <dependency>
+            <groupId>com.fasterxml.jackson.dataformat</groupId>
+            <artifactId>jackson-dataformat-xml</artifactId>
+        </dependency>
+
+
+        <!-- jwt-->
         <dependency>
             <groupId>io.jsonwebtoken</groupId>
             <artifactId>jjwt</artifactId>
+        </dependency>
+
+        <!-- Spring Boot Starter Cache -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-cache</artifactId>
+            <optional>true</optional>
+        </dependency>
+
+        <!-- Caffeine Cache -->
+        <dependency>
+            <groupId>com.github.ben-manes.caffeine</groupId>
+            <artifactId>caffeine</artifactId>
+            <optional>true</optional>
         </dependency>
 
         <!--        redis依赖-->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-data-redis</artifactId>
+            <optional>true</optional>
         </dependency>
 
 <!--        mail-->
@@ -158,6 +174,17 @@
                     <source>${maven.compiler.source}</source>
                     <target>${maven.compiler.target}</target>
                     <encoding>${project.build.sourceEncoding}</encoding>
+                    <annotationProcessorPaths>
+                        <path>
+                            <groupId>org.projectlombok</groupId>
+                            <artifactId>lombok</artifactId>
+                        </path>
+                        <path>
+                            <groupId>org.springframework.boot</groupId>
+                            <artifactId>spring-boot-autoconfigure-processor</artifactId>
+                            <version>${project.parent.version}</version>
+                        </path>
+                    </annotationProcessorPaths>
                 </configuration>
             </plugin>
             <!-- Source -->
