@@ -65,12 +65,6 @@ public class ChenilleAutoConfig implements WebFluxConfigurer {
 
     @Bean
     @ConditionalOnMissingBean
-    public ChenilleLoginUtils chenilleLoginUtils(ChenilleCacheUtils chenilleCacheUtils) {
-        return new ChenilleLoginUtils(chenilleCacheUtils);
-    }
-
-    @Bean
-    @ConditionalOnMissingBean
     public ChenilleXmlUtils chenilleXmlUtils() {
         return new ChenilleXmlUtils();
     }
@@ -229,6 +223,7 @@ public class ChenilleAutoConfig implements WebFluxConfigurer {
 
     @Bean
     @ConditionalOnMissingBean
+    @ConditionalOnProperty(prefix = "chenille.config.cache", name = "enabled", havingValue = "true")
     public ChenilleTwoLevelCacheManager twoLevelCacheManager(
             ChenilleProperties chenilleProperties,
             @Autowired(required = false) CaffeineCacheManager caffeineCacheManager,
@@ -246,6 +241,7 @@ public class ChenilleAutoConfig implements WebFluxConfigurer {
 
     @Bean
     @ConditionalOnMissingBean
+    @ConditionalOnProperty(prefix = "chenille.config.cache", name = "enabled", havingValue = "true")
     public ChenilleCacheUtils cacheUtils(ChenilleProperties chenilleProperties,
                                          ChenilleTwoLevelCacheManager cacheManager,
                                          @Autowired(required = false) RedisTemplate<String, Object> redisTemplate,
@@ -258,6 +254,7 @@ public class ChenilleAutoConfig implements WebFluxConfigurer {
 
     @Bean
     @ConditionalOnMissingBean
+    @ConditionalOnProperty(prefix = "chenille.config.cache", name = "enabled", havingValue = "true")
     public ChenilleCacheAspect cacheAspect(ChenilleProperties chenilleProperties,
                                            ChenilleCacheUtils cacheUtils,
                                            ChenilleStringUtils stringUtils) {
@@ -289,7 +286,7 @@ public class ChenilleAutoConfig implements WebFluxConfigurer {
     @ConditionalOnProperty(prefix = "chenille.config.auth", name = "enabled", havingValue = "true")
     public ChenilleAuthFilter authFilterRegistration(
             ChenilleProperties chenilleProperties,
-            ChenilleAuth chenilleAuth,
+            @Autowired(required = false) ChenilleAuth chenilleAuth,
             ChenilleCheckUtils chenilleCheckUtils,
             ChenilleJwtUtils chenilleJwtUtils) {
         return new ChenilleAuthFilter(

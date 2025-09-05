@@ -4,16 +4,11 @@
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
-    <parent>
-        <groupId>org.springframework.boot</groupId>
-        <artifactId>spring-boot-starter-parent</artifactId>
-        <version>3.5.5</version>
-    </parent>
-
     <properties>
         <maven.compiler.source>21</maven.compiler.source>
         <maven.compiler.target>21</maven.compiler.target>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <spring.boot.version>3.5.5</spring.boot.version>
         <chenjiabao.jwt.version>0.13.0</chenjiabao.jwt.version>
         <chenjiabao.jakarta.mail>2.0.3</chenjiabao.jakarta.mail>
     </properties>
@@ -23,7 +18,7 @@
     <url>https://github.com/majiexuan/open</url>
     <groupId>com.chenjiabao.open</groupId>
     <artifactId>chenille-spring-boot-starter</artifactId>
-    <version>0.2.0</version>
+    <version>0.2.1</version>
     <packaging>jar</packaging>
 
     <scm>
@@ -62,6 +57,14 @@
     <dependencyManagement>
         <dependencies>
 
+            <dependency>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-dependencies</artifactId>
+                <version>${spring.boot.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+
             <!--            jwt-->
             <dependency>
                 <groupId>io.jsonwebtoken</groupId>
@@ -69,7 +72,7 @@
                 <version>${chenjiabao.jwt.version}</version>
             </dependency>
 
-<!--            mail-->
+            <!--            mail-->
             <dependency>
                 <groupId>org.eclipse.angus</groupId>
                 <artifactId>jakarta.mail</artifactId>
@@ -182,7 +185,12 @@
                         <path>
                             <groupId>org.springframework.boot</groupId>
                             <artifactId>spring-boot-autoconfigure-processor</artifactId>
-                            <version>${project.parent.version}</version>
+                            <version>${spring.boot.version}</version>
+                        </path>
+                        <path>
+                            <groupId>org.springframework.boot</groupId>
+                            <artifactId>spring-boot-configuration-processor</artifactId>
+                            <version>${spring.boot.version}</version>
                         </path>
                     </annotationProcessorPaths>
                 </configuration>
@@ -258,6 +266,18 @@
             </plugin>
 
         </plugins>
+
+        <resources>
+            <resource>
+                <directory>src/main/resources</directory>
+            </resource>
+            <resource>
+                <directory>${project.build.directory}/classes</directory>
+                <includes>
+                    <include>META-INF/spring-configuration-metadata.json</include>
+                </includes>
+            </resource>
+        </resources>
     </build>
 
 </project>

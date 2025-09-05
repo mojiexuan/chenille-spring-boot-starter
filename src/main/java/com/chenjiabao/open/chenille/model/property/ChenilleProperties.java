@@ -22,47 +22,69 @@ public class ChenilleProperties {
     @NestedConfigurationProperty
     private ChenilleAuth auth = new ChenilleAuth();
 
-    // 分布式机器信息
+    /**
+     * 分布式机器信息
+     */
     @NestedConfigurationProperty
     private ChenilleMachine machine = new ChenilleMachine();
 
-    // 胡椒值
+    /**
+     * 胡椒值
+     */
     @NestedConfigurationProperty
     private ChenilleHash hash = new ChenilleHash();
 
-    // 邮件配置
+    /**
+     * 邮件配置
+     */
     @NestedConfigurationProperty
     private ChenilleMail mail = new ChenilleMail();
 
-    // JWT配置
+    /**
+     * JWT配置
+     */
     @NestedConfigurationProperty
     private ChenilleJwt jwt = new ChenilleJwt();
 
-    // 文件上传配置
+    /**
+     * 文件上传配置
+     */
     @NestedConfigurationProperty
     private ChenilleFile file = new ChenilleFile();
 
-    // Api配置
+    /**
+     * Api配置
+     */
     @NestedConfigurationProperty
     private ChenilleApi api = new ChenilleApi();
 
-    // 静态资源
+    /**
+     * 静态资源
+     */
     @NestedConfigurationProperty
     private ChenilleAssets assets = new ChenilleAssets();
 
-    // 开放Api文档
+    /**
+     * 开放Api文档
+     */
     @NestedConfigurationProperty
     private ChenilleDoc docs = new ChenilleDoc();
 
-    // 检查器
+    /**
+     * 检查器
+     */
     @NestedConfigurationProperty
     private ChenilleCheck check = new ChenilleCheck();
 
-    // 时间
+    /**
+     * 时间
+     */
     @NestedConfigurationProperty
     private ChenilleTime time = new ChenilleTime();
 
-    // 微信
+    /**
+     * 微信
+     */
     @NestedConfigurationProperty
     private ChenilleWeChat wechat = new ChenilleWeChat();
 

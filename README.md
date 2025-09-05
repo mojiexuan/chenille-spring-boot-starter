@@ -33,7 +33,7 @@
 <dependency>
     <groupId>com.chenjiabao.open</groupId>
     <artifactId>chenille-spring-boot-starter</artifactId>
-    <version>0.2.0</version>
+    <version>0.2.1</version>
 </dependency>
 ```
 

@@ -14,6 +14,10 @@ import org.springframework.boot.context.properties.NestedConfigurationProperty;
 @AllArgsConstructor
 public class ChenilleCache {
     /**
+     * 是否启用
+     */
+    private boolean enabled = false;
+    /**
      * 缓存名称
      */
     private String name = "chenille-cache";
