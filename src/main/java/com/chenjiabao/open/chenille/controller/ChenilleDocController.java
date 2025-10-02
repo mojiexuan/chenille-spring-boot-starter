@@ -10,16 +10,15 @@ import org.springframework.web.bind.annotation.RestController;
 
 /**
  * 接口文档
+ *
  * @author ChenJiaBao
  */
 @RestController
-@RequestMapping("/api-docs")
-public class ChenilleDocController {
-
-    private final ChenilleApiDocRender chenilleApiDocRender = new ChenilleApiDocRender();
+@RequestMapping("${chenille.config.docs.path:/docs}")
+public record ChenilleDocController(ChenilleApiDocRender chenilleApiDocRender) {
 
     @GetMapping
-    public ResponseEntity<String> getHtmlDocs(){
+    public ResponseEntity<String> getHtmlDocs() {
         return ResponseEntity.ok()
                 .contentType(MediaType.TEXT_HTML)
                 .body(chenilleApiDocRender.render("/"));
@@ -28,8 +27,8 @@ public class ChenilleDocController {
     @GetMapping("/{path}")
     public ResponseEntity<String> getHtmlDocsByPath(
             @PathVariable(value = "path")
-            String path){
-        if(path == null){
+            String path) {
+        if (path == null) {
             path = "/";
         }
         return ResponseEntity.ok()

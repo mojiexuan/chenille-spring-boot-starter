@@ -64,4 +64,20 @@ public class ChenilleApiDefinition {
     public void addBodyParam(ChenilleApiParameter parm){
         this.bodyParam.add(parm);
     }
+
+    @Override
+    public String toString() {
+        return "ChenilleApiDefinition{" +
+                "summary='" + summary + '\'' +
+                ", urlCode='" + urlCode + '\'' +
+                ", description='" + description + '\'' +
+                ", path='" + path + '\'' +
+                ", method='" + method + '\'' +
+                ", queryParam=" + queryParam.toString() +
+                ", pathParam=" + pathParam.toString() +
+                ", bodyParam=" + bodyParam.toString() +
+                ", deprecated=" + deprecated +
+                ", version='" + version + '\'' +
+                '}';
+    }
 }

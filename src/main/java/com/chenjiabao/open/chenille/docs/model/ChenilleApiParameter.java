@@ -41,4 +41,16 @@ public class ChenilleApiParameter {
         }
         property.put(key, value);
     }
+
+    @Override
+    public String toString() {
+        return "ChenilleApiParameter{" +
+                "name='" + name + '\'' +
+                ", description='" + description + '\'' +
+                ", type='" + type + '\'' +
+                ", required=" + required +
+                ", in='" + in + '\'' +
+                ", property=" + property +
+                '}';
+    }
 }

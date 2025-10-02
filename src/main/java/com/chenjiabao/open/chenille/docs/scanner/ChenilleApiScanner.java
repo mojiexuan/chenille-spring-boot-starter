@@ -4,6 +4,7 @@ import com.chenjiabao.open.chenille.annotation.ChenilleApiVersion;
 import com.chenjiabao.open.chenille.docs.annotation.Operation;
 import com.chenjiabao.open.chenille.docs.annotation.Parameter;
 import com.chenjiabao.open.chenille.docs.annotation.Tag;
+import com.chenjiabao.open.chenille.docs.config.ChenilleOpenApi;
 import com.chenjiabao.open.chenille.docs.model.ChenilleApiDefinition;
 import com.chenjiabao.open.chenille.docs.model.ChenilleApiGroup;
 import com.chenjiabao.open.chenille.docs.model.ChenilleApiParameter;
@@ -11,6 +12,7 @@ import jakarta.annotation.Nonnull;
 import lombok.Getter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.ApplicationListener;
@@ -36,6 +38,7 @@ public class ChenilleApiScanner implements ApplicationListener<ApplicationReadyE
 
     private final Logger log = LoggerFactory.getLogger(ChenilleApiScanner.class);
     private final ExecutorService executor = Executors.newSingleThreadExecutor();
+    private final ChenilleOpenApi chenilleOpenApi;
     @Getter
     private static volatile List<ChenilleApiGroup> chenilleApiGroups = Collections.emptyList();
 
@@ -53,6 +56,10 @@ public class ChenilleApiScanner implements ApplicationListener<ApplicationReadyE
             Boolean.class, Character.class, Byte.class, Short.class
     ));
 
+    public ChenilleApiScanner(@Autowired(required = false) ChenilleOpenApi chenilleOpenApi) {
+        this.chenilleOpenApi = chenilleOpenApi;
+    }
+
     public static boolean isWrapperType(Class<?> clazz) {
         return WRAPPER_TYPES.contains(clazz);
     }
@@ -64,6 +71,17 @@ public class ChenilleApiScanner implements ApplicationListener<ApplicationReadyE
             log.info("接口文档：开始扫描接口");
             try {
                 chenilleApiGroups = scanControllers(event.getApplicationContext());
+                if(chenilleOpenApi != null){
+                    ChenilleApiGroup overview = new ChenilleApiGroup();
+                    overview.setName("概览");
+                    // 概览接口
+                    ChenilleApiDefinition overviewApi = new ChenilleApiDefinition();
+                    overviewApi.setPath("/");
+                    overviewApi.setSummary("概览");
+                    overviewApi.setUrlCode("/");
+                    overview.addApi(overviewApi);
+                    chenilleApiGroups.addFirst(overview);
+                }
             } catch (RuntimeException e) {
                 log.error("接口文档：扫描接口失败", e);
             }
@@ -82,6 +100,7 @@ public class ChenilleApiScanner implements ApplicationListener<ApplicationReadyE
         // 获取所有RestController
         Map<String, Object> controllers = context.getBeansWithAnnotation(RestController.class);
         controllers.values().forEach(controller -> {
+            // 类
             Class<?> clazz = controller.getClass();
             ChenilleApiGroup chenilleApiGroup = resolveGroup(clazz);
             if(clazz.isAnnotationPresent(ChenilleApiVersion.class)){
@@ -174,6 +193,7 @@ public class ChenilleApiScanner implements ApplicationListener<ApplicationReadyE
     private ChenilleApiDefinition resolveHttpMethod(Method method) {
         ChenilleApiDefinition chenilleApiDefinition = new ChenilleApiDefinition();
         String[] paths = {"*"};
+        chenilleApiDefinition.setMethod("*");
         if (method.isAnnotationPresent(GetMapping.class)) {
             chenilleApiDefinition.setMethod("GET");
             paths = method.getAnnotation(GetMapping.class).value();
@@ -204,8 +224,6 @@ public class ChenilleApiScanner implements ApplicationListener<ApplicationReadyE
             chenilleApiDefinition.setMethod("GET");
             paths = method.getAnnotation(RequestMapping.class).value();
         }
-        // 否则允许全部
-        chenilleApiDefinition.setMethod("*");
         chenilleApiDefinition.setPath(paths.length > 0 ? paths[0] : "");
         return chenilleApiDefinition;
     }

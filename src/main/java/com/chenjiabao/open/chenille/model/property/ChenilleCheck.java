@@ -1,6 +1,7 @@
 package com.chenjiabao.open.chenille.model.property;
 
 import lombok.*;
+import org.springframework.boot.context.properties.NestedConfigurationProperty;
 
 /**
  * @author ChenJiaBao
@@ -10,8 +11,9 @@ import lombok.*;
 @AllArgsConstructor
 public class ChenilleCheck {
     private Boolean enabled = true;
-    private int min = 6;
-    private int max = 16;
-    private int level = 4;
-    private String specialChars = "!@#$%^&*()_+|<>?{}[]=-~";
+    /**
+     * 密码校验
+     */
+    @NestedConfigurationProperty
+    private ChenilleCheckPassword password = new ChenilleCheckPassword();
 }

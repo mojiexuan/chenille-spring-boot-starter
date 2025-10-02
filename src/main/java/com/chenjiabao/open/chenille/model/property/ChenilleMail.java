@@ -10,7 +10,7 @@ import org.springframework.boot.context.properties.NestedConfigurationProperty;
 @NoArgsConstructor
 @AllArgsConstructor
 public class ChenilleMail {
-    private boolean enabled = true;
+    private boolean enabled = false;
     private String host;
     private Integer port = 456;
     private Boolean ssl = false;

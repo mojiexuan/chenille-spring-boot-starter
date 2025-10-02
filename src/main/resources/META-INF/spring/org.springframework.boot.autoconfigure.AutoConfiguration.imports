@@ -1,1 +1,7 @@
-com.chenjiabao.open.chenille.config.ChenilleAutoConfig
+com.chenjiabao.open.chenille.config.ChenilleAutoConfigBase
+com.chenjiabao.open.chenille.config.ChenilleAutoConfigWeb
+com.chenjiabao.open.chenille.config.ChenilleAutoConfigValidator
+com.chenjiabao.open.chenille.config.ChenilleAutoConfigCache
+com.chenjiabao.open.chenille.config.ChenilleAutoConfigWebFlux
+com.chenjiabao.open.chenille.config.ChenilleAutoConfigWebMvc
+com.chenjiabao.open.chenille.config.ChenilleAutoConfigLifecycle

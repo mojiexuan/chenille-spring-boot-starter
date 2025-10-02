@@ -1,6 +1,7 @@
 package com.chenjiabao.open.chenille.core;
 
 import com.chenjiabao.open.chenille.model.property.ChenilleCheck;
+import com.chenjiabao.open.chenille.model.property.ChenilleCheckPassword;
 import lombok.extern.slf4j.Slf4j;
 
 import java.util.regex.Pattern;
@@ -37,17 +38,10 @@ public class ChenilleCheckUtils {
         this.check = check;
     }
 
-    public ChenilleCheckUtils(int minLength, int maxLength, int level, String specialChars){
+    public ChenilleCheckUtils(ChenilleCheckPassword password){
         ChenilleCheck check = new ChenilleCheck();
         check.setEnabled(true);
-        check.setMin(minLength);
-        check.setMax(maxLength);
-        check.setLevel(level);
-        if (specialChars != null && !specialChars.trim().isEmpty()){
-            check.setSpecialChars(specialChars);
-        }else {
-            check.setSpecialChars("!@#$%^&*()_+");
-        }
+        check.setPassword(password);
         this.check = check;
     }
 
@@ -59,10 +53,10 @@ public class ChenilleCheckUtils {
     public boolean isValidPassword(String password){
         return isValidPassword(
                 password,
-                check.getMin(),
-                check.getMax(),
-                check.getLevel(),
-                check.getSpecialChars()
+                check.getPassword().getMin(),
+                check.getPassword().getMax(),
+                check.getPassword().getLevel(),
+                check.getPassword().getSpecialChars()
                 );
     }
 
@@ -80,8 +74,8 @@ public class ChenilleCheckUtils {
         if(!isLengthInRange(password,minLength,maxLength)){
             return false;
         }
-        if(level > 3 && (check.getSpecialChars() == null ||
-                check.getSpecialChars().trim().isEmpty())){
+        if(level > 3 && (check.getPassword().getSpecialChars() == null ||
+                check.getPassword().getSpecialChars().trim().isEmpty())){
             log.warn("密码强度校验未配置特殊字符，无法进行特殊字符校验");
             return false;
         }

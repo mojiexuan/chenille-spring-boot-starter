@@ -1,6 +1,7 @@
 package com.chenjiabao.open.chenille.core;
 
-import io.micrometer.common.lang.Nullable;
+import com.chenjiabao.open.chenille.ChenilleBeanHelper;
+import lombok.NonNull;
 
 import java.awt.*;
 import java.awt.datatransfer.Clipboard;
@@ -9,7 +10,6 @@ import java.math.RoundingMode;
 import java.nio.charset.StandardCharsets;
 import java.text.DecimalFormat;
 import java.util.Base64;
-import java.util.Random;
 
 /**
  * 字符串工具类
@@ -29,24 +29,22 @@ public class ChenilleStringUtils {
     /**
      * 判断字符串是否为空白
      */
-    public boolean isBlank(@Nullable String string) {
-        if (isEmpty(string)) {
-            return true;
-        } else {
-            for(int i = 0; i < string.length(); ++i) {
+    public boolean isBlank(@NonNull String string) {
+        if (!isEmpty(string)) {
+            for (int i = 0; i < string.length(); ++i) {
                 if (!Character.isWhitespace(string.charAt(i))) {
                     return false;
                 }
             }
 
-            return true;
         }
+        return true;
     }
 
     /**
      * 判断字符串是否非空白
      */
-    public boolean isNotBlank(@Nullable String string) {
+    public boolean isNotBlank(@NonNull String string) {
         return !isBlank(string);
     }
 
@@ -93,42 +91,36 @@ public class ChenilleStringUtils {
      *
      * @param characters 指定范围如"ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
      * @param num        长度
+     *
+     * @deprecated 从0.2.2开始，建议使用 {@link ChenilleRandomUtils#randomString(String, int)}
      */
+    @Deprecated(since = "0.2.2",forRemoval = true)
     public String generateSureString(String characters, int num) {
-        StringBuilder sb = new StringBuilder();
-        Random random = new Random();
-
-        for (int i = 0; i < num; i++) {
-            int index = random.nextInt(characters.length());
-            sb.append(characters.charAt(index));
-        }
-
-        return sb.toString();
+        return ChenilleBeanHelper.get(ChenilleRandomUtils.class).randomString(characters, num);
     }
 
     /**
      * 生成随机指定范围字符串 默认范围为"ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
      *
      * @param num 长度
+     *
+     * @deprecated 从0.2.2开始，建议使用 {@link ChenilleRandomUtils#randomNumberUpperString(int)}
      */
+    @Deprecated(since = "0.2.2",forRemoval = true)
     public String generateSureString(int num) {
-        String characters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
-        return generateSureString(characters,num);
+        return ChenilleBeanHelper.get(ChenilleRandomUtils.class).randomNumberUpperString(num);
     }
 
     /**
      * 生成随机长度纯数字字符串
      *
      * @param length 长度
+     *
+     * @deprecated 从0.2.2开始，建议使用 {@link ChenilleRandomUtils#randomNumberString(int)}
      */
+    @Deprecated(since = "0.2.2",forRemoval = true)
     public String generateRandomNumberString(int length) {
-        Random random = new Random();
-        StringBuilder sb = new StringBuilder(length);
-        for (int i = 0; i < length; i++) {
-            // 生成0-9之间的随机数字
-            sb.append(random.nextInt(10));
-        }
-        return sb.toString();
+        return ChenilleBeanHelper.get(ChenilleRandomUtils.class).randomNumberString(length);
     }
 
     /**

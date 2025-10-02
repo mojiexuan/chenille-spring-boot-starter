@@ -35,4 +35,15 @@ public class ChenilleApiGroup {
     public void addApi(ChenilleApiDefinition api) {
         apis.add(api);
     }
+
+    @Override
+    public String toString() {
+        return "ChenilleApiGroup{" +
+                "name='" + name + '\'' +
+                ", description='" + description + '\'' +
+                ", path='" + path + '\'' +
+                ", apis=" + apis +
+                ", version='" + version + '\'' +
+                '}';
+    }
 }

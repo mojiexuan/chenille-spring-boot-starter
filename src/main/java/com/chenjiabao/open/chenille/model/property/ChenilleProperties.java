@@ -99,4 +99,10 @@ public class ChenilleProperties {
      */
     @NestedConfigurationProperty
     private ChenilleExecutor executor = new ChenilleExecutor();
+
+    /**
+     * jackson 工具类配置
+     */
+    @NestedConfigurationProperty
+    private ChenilleJackson jackson = new ChenilleJackson();
 }

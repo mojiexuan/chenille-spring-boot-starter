@@ -5,6 +5,7 @@ import com.chenjiabao.open.chenille.enums.ChenilleResponseCode;
 import com.chenjiabao.open.chenille.exception.ChenilleChannelException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.ResponseBody;
@@ -34,6 +35,21 @@ public class ChenilleGlobalExceptionHandler {
     public ResponseEntity<ChenilleServerResponse<Void>> serverWebInputExceptionHandler(ServerWebInputException e) {
         log.error("参数绑定异常 -> {}", e.getMessage());
         return ChenilleServerResponse.fail(ChenilleResponseCode.PARAM_ERROR);
+    }
+
+    /**
+     * 校验异常
+     */
+    @ExceptionHandler(value = MethodArgumentNotValidException.class)
+    @ResponseBody
+    public ResponseEntity<ChenilleServerResponse<Void>> methodArgumentNotValidExceptionHandler(
+            MethodArgumentNotValidException e) {
+        log.error("校验异常 -> {}", e.getMessage());
+        String message = e.getBindingResult().getAllErrors().getFirst().getDefaultMessage();
+        return ChenilleServerResponse.<Void>builder()
+                .setCode(ChenilleResponseCode.PARAM_ERROR)
+                .setMessage(message)
+                .getResponseEntity();
     }
 
     /**

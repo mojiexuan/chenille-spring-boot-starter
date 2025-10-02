@@ -22,7 +22,7 @@ import java.util.Locale;
 /**
  * @author ChenJiaBao
  */
-public class ChenilleAuthFilter implements WebFilter {
+public class ChenilleAuthFilterFlux implements WebFilter {
 
     private final ChenilleAuth auth;
     private final com.chenjiabao.open.chenille.config.ChenilleAuth chenilleAuth;
@@ -30,7 +30,7 @@ public class ChenilleAuthFilter implements WebFilter {
     private final AntPathMatcher pathMatcher = new AntPathMatcher();
     private final ChenilleJwtUtils chenilleJwtUtils;
 
-    public ChenilleAuthFilter(
+    public ChenilleAuthFilterFlux(
             ChenilleAuth auth,
             com.chenjiabao.open.chenille.config.ChenilleAuth chenilleAuth,
             ChenilleCheckUtils chenilleCheckUtils,
