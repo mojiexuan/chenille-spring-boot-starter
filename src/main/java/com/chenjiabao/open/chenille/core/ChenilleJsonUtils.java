@@ -37,6 +37,21 @@ public class ChenilleJsonUtils {
      * @param object 要序列化的对象
      * @return 序列化后的 JSON 字节数组
      */
+    public byte[] toBytes(Object object) {
+        try {
+            return OBJECT_MAPPER.writeValueAsBytes(object);
+        } catch (Exception e) {
+            log.error("序列化对象为 JSON 字节数组失败", e);
+            return null;
+        }
+    }
+
+    /**
+     * 将对象序列化为 JSON 字节数组
+     *
+     * @param object 要序列化的对象
+     * @return 序列化后的 JSON 字节数组
+     */
     public byte[] toJsonBytes(Object object) {
         try {
             return OBJECT_MAPPER.writeValueAsBytes(object);

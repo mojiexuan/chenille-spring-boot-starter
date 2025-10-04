@@ -85,7 +85,7 @@ public class ChenilleAutoConfigWeb{
 
     @Bean
     @ConditionalOnMissingBean
-    @ConditionalOnProperty(prefix = "chenille.config.jackson.json", name = "enabled", havingValue = "true")
+    @ConditionalOnProperty(prefix = "chenille.config.jackson.json", name = "enabled", havingValue = "true",matchIfMissing = true)
     public ChenilleJsonUtils chenilleJsonUtils() {
         return new ChenilleJsonUtils();
     }
@@ -192,15 +192,15 @@ public class ChenilleAutoConfigWeb{
     @ConditionalOnProperty(prefix = "chenille.config.file", name = "enabled", havingValue = "true")
     public ChenilleFilesUtils chenilleFilesUtils(ChenilleProperties properties,
                                          @Autowired(required = false) ChenilleTimeUtils chenilleTimeUtils,
-                                         @Autowired(required = false) ChenilleStringUtils chenilleStringUtils) {
+                                         @Autowired(required = false) ChenilleRandomUtils chenilleRandomUtils) {
         if(chenilleTimeUtils == null) {
             chenilleTimeUtils = new ChenilleTimeUtils(properties.getTime());
         }
-        if(chenilleStringUtils == null) {
-            chenilleStringUtils = new ChenilleStringUtils();
+        if(chenilleRandomUtils == null) {
+            chenilleRandomUtils = new ChenilleRandomUtils();
         }
 
-        return new ChenilleFilesUtils(properties.getFile(), chenilleTimeUtils, chenilleStringUtils);
+        return new ChenilleFilesUtils(properties.getFile(), chenilleTimeUtils, chenilleRandomUtils);
     }
 
 }

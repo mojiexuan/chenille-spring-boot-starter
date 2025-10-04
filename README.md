@@ -33,7 +33,7 @@
 <dependency>
     <groupId>com.chenjiabao.open</groupId>
     <artifactId>chenille-spring-boot-starter</artifactId>
-    <version>0.2.1</version>
+    <version>0.2.2</version>
 </dependency>
 ```
 
@@ -43,17 +43,17 @@
 
 ## 版本管理 @ChenilleApiVersion
 
-该注解通过扫描`@RestController`注解，为接口层添加接口版本前缀，例如登录接口 `http://127.0.0.1:8080/login` ，使用`@ChenilleApiVersion`后将变成 `http://127.0.0.1:8080/server/v1/login` 。
+该注解通过扫描`@RestController`注解，为接口层添加接口版本前缀，例如登录接口 `http://127.0.0.1:8080/login` ，使用`@ChenilleApiVersion`后将变成 `http://127.0.0.1:8080/api/v1/login` 。
 
 **配置**
 
-默认接口前缀为`server`，该配置可更改接口前缀，你不应该添加前导及尾随`/`
+默认接口前缀为`api`，该配置可更改接口前缀，你不应该添加前导及尾随`/`
 
 ```yaml
 chenille:
   config:
     api:
-      prefix: server
+      prefix: api
 ```
 
 **使用**
@@ -98,7 +98,7 @@ public ApiResponse example(@ChenilleRequestAttributeParam("id") Long uid) {
 
 ## 状态码 ChenilleRequestCode {#chenille-request-code}
 
-`ResponseCode` 枚举类用于统一管理接口的 业务响应码，它结合了 HTTP 状态码 和 业务逻辑状态，便于前后端约定与调试。
+`ChenilleRequestCode` 枚举类用于统一管理接口的 业务响应码，它结合了 HTTP 状态码 和 业务逻辑状态，便于前后端约定与调试。
 
 - code：业务码（如 COMM-4000），用于精确标识业务错误
 - status：对应的 HTTP 状态码
@@ -153,54 +153,16 @@ public ApiResponse example(@ChenilleRequestAttributeParam("id") Long uid) {
 
 **使用示例**
 
-1、返回成功（无数据）
-
-```java
-@GetMapping("/ping")
-public ResponseEntity<ChenilleServerResponse<Void>> ping() {
-    return ChenilleServerResponse.ok();
-}
-```
-
-2、返回成功（带数据）
+按照之前习惯书写即可，我们将自动包装。
 
 ```java
 @GetMapping("/user")
-public ResponseEntity<ChenilleServerResponse<UserDto>> getUser() {
-    UserDto user = new UserDto("chenille", "毛毛虫");
-    return ChenilleServerResponse.success(user);
+public Mono<User> getUser() {
+    return new User(1,"小明");
 }
 ```
 
-3、返回失败（业务异常）
-
-```java
-@GetMapping("/secure")
-public ResponseEntity<ChenilleServerResponse<Void>> secure() {
-    throw new ChannelException(ChenilleResponseCode.UNAUTHORIZED, "请先登录");
-}
-
-// 在全局异常处理器中捕获：
-@ExceptionHandler(ChannelException.class)
-public ResponseEntity<ChenilleServerResponse<Void>> handle(ChenilleChannelException e) {
-    return ChenilleServerResponse.fail(e);
-}
-```
-
-4、使用 Builder 灵活构建
-
-```java
-@PostMapping("/custom")
-public ResponseEntity<ChenilleServerResponse<String>> custom() {
-    return ChenilleServerResponse.<String>builder()
-            .setCode(ChenilleResponseCode.PARAM_ERROR)
-            .setMessage("参数校验失败")
-            .setData("具体错误信息")
-            .getResponseEntity();
-}
-```
-
-5、示例返回 JSON
+示例返回 JSON
 
 ```json
 {
@@ -214,15 +176,13 @@ public ResponseEntity<ChenilleServerResponse<String>> custom() {
 }
 ```
 
-> 设置 `ResponseEntity<ChenilleServerResponse<T>>` 返回值过于麻烦，现在你可以直接返回 `ChenilleServerResponse<T>`，甚至是 `T`，响应体增强器会自行处理。
-
 > 小提示：`ChenilleServerResponse` 就像毛毛虫裹上的小茧——看似普通，却能让你的接口响应更优雅。等它破茧而出时，你的项目也会更漂亮。
 
 ---
 
 ## 响应体增强器
 
-这样的返回类型 `Mono<ResponseEntity<ChenilleServerResponse<T>>>` 并不友好，你可以保持这样的 `Mono<T>` 甚至 `T` 简单书写即可，增强器会自动对返回值进行包装。
+这样的返回类型 `Mono<ChenilleServerResponse<T>>` 并不友好，你可以保持这样的 `Mono<T>` 甚至 `T` 简单书写即可，增强器会自动对返回值进行包装。
 
 但你需要注意，以下返回类型不处理：
 

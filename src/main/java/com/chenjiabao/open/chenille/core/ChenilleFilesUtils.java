@@ -17,7 +17,7 @@ import java.util.ArrayList;
 @Slf4j
 public record ChenilleFilesUtils(ChenilleFile fileProperty,
                                  ChenilleTimeUtils chenilleTimeUtils,
-                                 ChenilleStringUtils chenilleStringUtils) {
+                                 ChenilleRandomUtils chenilleRandomUtils) {
 
     //项目目录
     public static String classesPath = System.getProperty("user.dir");
@@ -279,7 +279,7 @@ public record ChenilleFilesUtils(ChenilleFile fileProperty,
         String dir = chenilleTimeUtils.getNowTime("yyyyMMdd");
         String newFileName = chenilleTimeUtils.getNowTime("yyyyMMddHHmmss");
         //生成随机5长度数字字符串
-        String randomNumber = chenilleStringUtils.generateRandomNumberString(5);
+        String randomNumber = chenilleRandomUtils.randomNumberString(5);
         // 拼接新的文件名
         newFileName = newFileName + randomNumber + fileSuffix;
 

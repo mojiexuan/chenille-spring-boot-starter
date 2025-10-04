@@ -12,7 +12,7 @@ import java.util.List;
 @AllArgsConstructor
 public class ChenilleApi {
     private boolean enabled = true;
-    private String prefix = "server";
+    private String prefix = "api";
     private String accessControlAllowOrigin = "*";
     private List<String> accessControlAllowMethods = List.of("GET", "POST", "PUT", "DELETE", "OPTIONS");
     private List<String> accessControlAllowHeaders = List.of("Content-Type", "Authorization");

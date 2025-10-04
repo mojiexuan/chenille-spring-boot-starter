@@ -8,5 +8,5 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 public class ChenilleJacksonXml {
-    private boolean enabled = true;
+    private boolean enabled = false;
 }

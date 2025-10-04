@@ -31,37 +31,48 @@ public class ChenilleServerResponse<T> implements Serializable {
         this.data = data;
     }
 
+    public ResponseEntity<ChenilleServerResponse<T>> getResponseEntity(){
+        return ResponseEntity
+                .status(this.code.getStatus())
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(this);
+    }
+
     public static <T> Builder<T> builder(){
         return new Builder<>();
     }
 
-    public static ResponseEntity<ChenilleServerResponse<Void>> ok(){
+    public static ChenilleServerResponse<Void> ok(){
         return success();
     }
 
-    public static ResponseEntity<ChenilleServerResponse<Void>> success(){
+    public static ChenilleServerResponse<Void> success(){
         return success(null);
     }
 
-    public static <T> ResponseEntity<ChenilleServerResponse<T>> success(T data){
+    public static <T> ChenilleServerResponse<T> success(T data){
         return ChenilleServerResponse.<T>builder()
                 .setCode(ChenilleResponseCode.SUCCESS)
                 .setData(data)
-                .getResponseEntity();
+                .build();
     }
 
-    public static ResponseEntity<ChenilleServerResponse<Void>> fail(ChenilleResponseCode code){
+    public static ChenilleServerResponse<Void> fail(ChenilleResponseCode code){
         return ChenilleServerResponse.<Void>builder()
                 .setCode(code)
                 .setMessage(code.getMessage())
-                .getResponseEntity();
+                .build();
     }
 
-    public static ResponseEntity<ChenilleServerResponse<Void>> fail(ChenilleChannelException e){
+    public static ChenilleServerResponse<Void> fail(ChenilleChannelException e){
         return ChenilleServerResponse.<Void>builder()
                 .setCode(e.getCode())
                 .setMessage(e.getMessage())
-                .getResponseEntity();
+                .build();
+    }
+
+    public static <T> ResponseEntity<ChenilleServerResponse<T>> getResponseEntity(ChenilleServerResponse<T> response){
+        return response.getResponseEntity();
     }
 
     public static class Builder<T> {
@@ -95,17 +106,6 @@ public class ChenilleServerResponse<T> implements Serializable {
 
         public ChenilleServerResponse<T> build() {
             return new ChenilleServerResponse<>(this.code, this.message, this.data);
-        }
-
-        public ResponseEntity<ChenilleServerResponse<T>> getResponseEntity() {
-            return this.getResponseEntity(build());
-        }
-
-        public ResponseEntity<ChenilleServerResponse<T>> getResponseEntity(ChenilleServerResponse<T> chenilleServerResponse) {
-            return ResponseEntity
-                    .status(chenilleServerResponse.code.getStatus())
-                    .contentType(MediaType.APPLICATION_JSON)
-                    .body(chenilleServerResponse);
         }
     }
 }

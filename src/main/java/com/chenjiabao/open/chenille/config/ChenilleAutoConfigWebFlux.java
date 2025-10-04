@@ -1,16 +1,15 @@
 package com.chenjiabao.open.chenille.config;
 
-import com.chenjiabao.open.chenille.aspect.ChenilleResponseAspect;
 import com.chenjiabao.open.chenille.core.*;
 import com.chenjiabao.open.chenille.exception.ChenilleChannelException;
 import com.chenjiabao.open.chenille.filter.ChenilleAuthFilterFlux;
 import com.chenjiabao.open.chenille.filter.ChenilleCorsFilter;
 import com.chenjiabao.open.chenille.filter.ChenilleExchangeContextFilter;
+import com.chenjiabao.open.chenille.handler.ChenilleResponseHandler;
 import com.chenjiabao.open.chenille.handler.ChenilleVersionedRMHM;
 import com.chenjiabao.open.chenille.model.property.*;
 import com.chenjiabao.open.chenille.resolver.ChenilleRequestAttrParamArgumentResolver;
 import lombok.extern.slf4j.Slf4j;
-import org.aspectj.lang.ProceedingJoinPoint;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.AutoConfigureAfter;
@@ -21,7 +20,11 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnWebApplicat
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Primary;
+import org.springframework.core.Ordered;
+import org.springframework.core.ReactiveAdapterRegistry;
 import org.springframework.core.annotation.Order;
+import org.springframework.http.codec.ServerCodecConfigurer;
+import org.springframework.web.reactive.accept.RequestedContentTypeResolver;
 import org.springframework.web.reactive.config.WebFluxConfigurer;
 import org.springframework.web.reactive.result.method.annotation.ArgumentResolverConfigurer;
 import org.springframework.web.reactive.result.method.annotation.RequestMappingHandlerMapping;
@@ -43,6 +46,22 @@ public class ChenilleAutoConfigWebFlux implements WebFluxConfigurer {
     @Override
     public void configureArgumentResolvers(ArgumentResolverConfigurer configurer) {
         configurer.addCustomResolver(new ChenilleRequestAttrParamArgumentResolver());
+    }
+
+
+
+    @Bean
+    @Order(Ordered.HIGHEST_PRECEDENCE)
+    @ConditionalOnMissingBean(ChenilleResponseHandler.class)
+    public ChenilleResponseHandler chenilleResponseHandler(
+            ServerCodecConfigurer configurer,
+            RequestedContentTypeResolver resolver,
+            ReactiveAdapterRegistry registry) {
+        return new ChenilleResponseHandler(
+                configurer.getWriters(),
+                resolver,
+                registry
+        );
     }
 
     @Bean
@@ -92,13 +111,6 @@ public class ChenilleAutoConfigWebFlux implements WebFluxConfigurer {
     @Bean
     public ChenilleExchangeContextFilter chenilleExchangeContextFilter() {
         return new ChenilleExchangeContextFilter();
-    }
-
-    @Bean
-    @ConditionalOnMissingBean
-    @ConditionalOnClass(ProceedingJoinPoint.class)
-    public ChenilleResponseAspect chenilleResponseAspect() {
-        return new ChenilleResponseAspect();
     }
 
 }

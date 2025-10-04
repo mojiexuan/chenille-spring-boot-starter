@@ -9,6 +9,6 @@ import lombok.*;
 @NoArgsConstructor
 @AllArgsConstructor
 public class ChenilleAssets {
-    private Boolean enabled = false;
+    private boolean enabled = false;
     private String path = "public";
 }

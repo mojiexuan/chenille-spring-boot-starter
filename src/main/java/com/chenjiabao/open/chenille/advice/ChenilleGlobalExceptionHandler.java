@@ -24,7 +24,7 @@ public class ChenilleGlobalExceptionHandler {
     @ResponseBody
     public ResponseEntity<ChenilleServerResponse<Void>> channelExceptionHandler(ChenilleChannelException e) {
         log.error("流处理异常 -> {}", e.getMessage());
-        return ChenilleServerResponse.fail(e);
+        return ChenilleServerResponse.fail(e).getResponseEntity();
     }
 
     /**
@@ -34,7 +34,7 @@ public class ChenilleGlobalExceptionHandler {
     @ResponseBody
     public ResponseEntity<ChenilleServerResponse<Void>> serverWebInputExceptionHandler(ServerWebInputException e) {
         log.error("参数绑定异常 -> {}", e.getMessage());
-        return ChenilleServerResponse.fail(ChenilleResponseCode.PARAM_ERROR);
+        return ChenilleServerResponse.fail(ChenilleResponseCode.PARAM_ERROR).getResponseEntity();
     }
 
     /**
@@ -49,6 +49,7 @@ public class ChenilleGlobalExceptionHandler {
         return ChenilleServerResponse.<Void>builder()
                 .setCode(ChenilleResponseCode.PARAM_ERROR)
                 .setMessage(message)
+                .build()
                 .getResponseEntity();
     }
 
@@ -59,7 +60,7 @@ public class ChenilleGlobalExceptionHandler {
     @ResponseBody
     public ResponseEntity<ChenilleServerResponse<Void>> exceptionHandler(Exception e) {
         log.error("系统异常 -> {}", e.getMessage());
-        return ChenilleServerResponse.fail(ChenilleResponseCode.SYSTEM_ERROR);
+        return ChenilleServerResponse.fail(ChenilleResponseCode.SYSTEM_ERROR).getResponseEntity();
     }
 
 }
