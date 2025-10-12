@@ -139,8 +139,9 @@ public class ChenilleAutoConfigWeb{
     @Bean
     @ConditionalOnMissingBean
     @ConditionalOnProperty(prefix = "chenille.config.jwt", name = "enabled", havingValue = "true")
-    public ChenilleJwtUtils chenilleJwtUtils(ChenilleProperties properties) {
-        ChenilleJwtUtils chenilleJwtUtils = new ChenilleJwtUtils();
+    public ChenilleJwtUtils chenilleJwtUtils(ChenilleProperties properties,
+                                             @Autowired(required = false) ChenilleJsonUtils chenilleJsonUtils) {
+        ChenilleJwtUtils chenilleJwtUtils = new ChenilleJwtUtils(properties.getJwt(), chenilleJsonUtils);
         if (properties.getJwt().getSecret() != null) {
             chenilleJwtUtils.setJwtSecret(properties.getJwt().getSecret());
         }

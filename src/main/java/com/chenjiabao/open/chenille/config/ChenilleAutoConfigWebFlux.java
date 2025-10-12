@@ -5,6 +5,7 @@ import com.chenjiabao.open.chenille.exception.ChenilleChannelException;
 import com.chenjiabao.open.chenille.filter.ChenilleAuthFilterFlux;
 import com.chenjiabao.open.chenille.filter.ChenilleCorsFilter;
 import com.chenjiabao.open.chenille.filter.ChenilleExchangeContextFilter;
+import com.chenjiabao.open.chenille.filter.ChenilleMonoErrorFilter;
 import com.chenjiabao.open.chenille.handler.ChenilleResponseHandler;
 import com.chenjiabao.open.chenille.handler.ChenilleVersionedRMHM;
 import com.chenjiabao.open.chenille.model.property.*;
@@ -65,14 +66,15 @@ public class ChenilleAutoConfigWebFlux implements WebFluxConfigurer {
     }
 
     @Bean
+    @Order(Ordered.HIGHEST_PRECEDENCE)
     @ConditionalOnMissingBean
     @ConditionalOnProperty(prefix = "chenille.config.auth", name = "enabled", havingValue = "true")
     public ChenilleAuthFilterFlux authFilterRegistration(
             ChenilleProperties chenilleProperties,
-            @Autowired(required = false) ChenilleAuth chenilleAuth,
+            @Autowired(required = false) ChenilleAuthProvider chenilleAuthProvider,
             @Autowired(required = false) ChenilleCheckUtils chenilleCheckUtils,
             @Autowired(required = false) ChenilleJwtUtils chenilleJwtUtils) {
-        if (chenilleAuth == null) {
+        if (chenilleAuthProvider == null) {
             log.error("注入 ChenilleAuthFilterFlux Bean 失败 -> 启用 chenille.config.auth 时，你需要实现 ChenilleAuth 接口");
             throw new ChenilleChannelException("注入 ChenilleAuthFilterFlux Bean 失败 -> 启用 chenille.config.auth 时，你需要实现 ChenilleAuth 接口");
         }
@@ -86,7 +88,7 @@ public class ChenilleAutoConfigWebFlux implements WebFluxConfigurer {
         }
         return new ChenilleAuthFilterFlux(
                 chenilleProperties.getAuth(),
-                chenilleAuth,
+                chenilleAuthProvider,
                 chenilleCheckUtils,
                 chenilleJwtUtils
         );
@@ -94,7 +96,7 @@ public class ChenilleAutoConfigWebFlux implements WebFluxConfigurer {
 
     @Bean(name = "chenilleCorsFilter")
     @ConditionalOnMissingBean(name = "chenilleCorsFilter")
-    @Order(0)
+    @Order(Ordered.HIGHEST_PRECEDENCE + 100)
     public ChenilleCorsFilter corsWebFilter(ChenilleProperties properties) {
         return new ChenilleCorsFilter(properties.getApi());
     }
@@ -109,8 +111,15 @@ public class ChenilleAutoConfigWebFlux implements WebFluxConfigurer {
     }
 
     @Bean
+    @Order(Ordered.HIGHEST_PRECEDENCE + 200)
     public ChenilleExchangeContextFilter chenilleExchangeContextFilter() {
         return new ChenilleExchangeContextFilter();
+    }
+
+    @Bean
+    @Order(Ordered.LOWEST_PRECEDENCE)
+    public ChenilleMonoErrorFilter chenilleMonoErrorFilter() {
+        return new ChenilleMonoErrorFilter();
     }
 
 }

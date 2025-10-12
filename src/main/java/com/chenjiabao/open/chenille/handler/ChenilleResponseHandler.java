@@ -1,6 +1,6 @@
 package com.chenjiabao.open.chenille.handler;
 
-import com.chenjiabao.open.chenille.core.ChenilleServerResponse;
+import com.chenjiabao.open.chenille.serializer.ChenilleServerResponse;
 import com.chenjiabao.open.chenille.annotation.ChenilleIgnoreResponse;
 import com.chenjiabao.open.chenille.enums.ChenilleResponseCode;
 import com.chenjiabao.open.chenille.exception.ChenilleChannelException;
@@ -34,10 +34,6 @@ public class ChenilleResponseHandler extends ResponseBodyResultHandler implement
         super(writers, resolver, registry);
     }
 
-    /**
-     * “哑方法”
-     * 用于生成带泛型信息的 MethodParameter
-     */
     @SuppressWarnings("unused")
     private ChenilleServerResponse<Object> __chenilleResponseDummy() {
         return null;
@@ -45,19 +41,20 @@ public class ChenilleResponseHandler extends ResponseBodyResultHandler implement
 
     @Override
     public boolean supports(@NonNull HandlerResult result) {
-
         ResolvableType returnType = result.getReturnType();
 
-        if (returnType.resolve() == Mono.class || returnType.resolve() == ResponseEntity.class) {
+        if (returnType.resolve() == Mono.class
+                || returnType.resolve() == ResponseEntity.class
+                || returnType.resolve() == Flux.class) {
             ResolvableType genericType = returnType.getGeneric(0);
             if (genericType.resolve() == ResponseEntity.class ||
                     genericType.resolve() == Mono.class ||
-                    genericType.resolve() == Flux.class) {
+                    genericType.resolve() == Flux.class ||
+                    genericType.resolve() == ChenilleServerResponse.class) {
                 return false;
             }
         }
 
-        // 忽略 ChenilleIgnoreResponse 注解
         MethodParameter returnTypeSource = result.getReturnTypeSource();
         return returnTypeSource.getMethodAnnotation(ChenilleIgnoreResponse.class) == null &&
                 !returnTypeSource.getContainingClass().isAnnotationPresent(ChenilleIgnoreResponse.class);
@@ -67,26 +64,35 @@ public class ChenilleResponseHandler extends ResponseBodyResultHandler implement
     @NonNull
     public Mono<Void> handleResult(@NonNull ServerWebExchange exchange,
                                    @NonNull HandlerResult result) {
+
         exchange.getResponse().getHeaders().setContentType(MediaType.APPLICATION_JSON);
-        Object value = result.getReturnValue();
-        Object body;
-        switch (value) {
+        Object returnValue = result.getReturnValue();
+        Mono<?> body;
+
+        switch (returnValue) {
             case null -> body = Mono.just(buildResponse(null));
-            case Mono<?> mono -> body = mono.map(o -> {
-                if (o instanceof ChenilleServerResponse<?> serverResponse) {
-                    exchange.getResponse().setStatusCode(serverResponse.getCode().getStatus());
-                    return serverResponse;
-                } else {
-                    return buildResponse(o);
-                }
-            });
+            case ChenilleServerResponse<?> serverResponse -> {
+                exchange.getResponse().setStatusCode(serverResponse.getCode().getStatus());
+                body = Mono.just(serverResponse);
+            }
+            case Mono<?> mono -> {
+                body = mono.flatMap(o -> {
+                    if (o instanceof ChenilleServerResponse<?> sr) {
+                        exchange.getResponse().setStatusCode(sr.getCode().getStatus());
+                        return Mono.just(sr);
+                    } else {
+                        return Mono.just(buildResponse(o));
+                    }
+                });
+            }
             case Flux<?> flux -> {
                 String accept = exchange.getRequest().getHeaders().getFirst(HttpHeaders.ACCEPT);
                 boolean isStream = accept != null && accept.contains("text/event-stream");
                 if (isStream) {
-                    body = flux
-                            .map(this::buildResponse)
-                            .defaultIfEmpty(buildResponse(null));
+                    body = flux.map(this::buildResponse)
+                            .defaultIfEmpty(buildResponse(null))
+                            .collectList()
+                            .map(this::buildResponse);
                 } else {
                     body = flux.collectList()
                             .map(this::buildResponse)
@@ -97,52 +103,37 @@ public class ChenilleResponseHandler extends ResponseBodyResultHandler implement
                 exchange.getResponse().getHeaders().putAll(resp.getHeaders());
                 exchange.getResponse().setStatusCode(resp.getStatusCode());
                 Object b = resp.getBody();
-                if (b instanceof ChenilleServerResponse<?> serverResponse) {
-                    body = Mono.just(serverResponse);
+                if (b instanceof ChenilleServerResponse<?> sr) {
+                    body = Mono.just(sr);
                 } else {
                     body = Mono.just(buildResponse(b, resp.getStatusCode()));
                 }
             }
-            default -> body = Mono.just(buildResponse(value));
+            default -> {
+                body = Mono.just(buildResponse(returnValue));
+            }
         }
-
-        MethodParameter actualParam = result.getReturnTypeSource();
 
         MethodParameter bodyParameter;
         try {
             Method dummy = ChenilleResponseHandler.class.getDeclaredMethod("__chenilleResponseDummy");
-            bodyParameter = new MethodParameter(dummy, -1); // -1 表示 method return type
+            bodyParameter = new MethodParameter(dummy, -1);
         } catch (NoSuchMethodException e) {
-            // 这不可能发生，除非上面的哑方法被删掉；抛异常方便排查
             throw new ChenilleChannelException("数据包装失败", e);
         }
 
-        // 使用带 actualParam 的重载，便于编码器推断真实元素类型
+        MethodParameter actualParam = result.getReturnTypeSource();
         return writeBody(body, bodyParameter, actualParam, exchange);
     }
 
-    /**
-     * 构建响应
-     *
-     * @param body 响应体
-     * @return 响应
-     */
     private ChenilleServerResponse<Object> buildResponse(Object body) {
         return buildResponse(body, HttpStatus.OK);
     }
 
-    /**
-     * 构建响应
-     *
-     * @param body   响应体
-     * @param status 状态码
-     * @return 响应
-     */
     private ChenilleServerResponse<Object> buildResponse(Object body, HttpStatusCode status) {
         return ChenilleServerResponse.builder()
                 .setData(body)
-                .setCode(ChenilleResponseCode.getResponseCode(status))
-                .build();
+                .setCode(ChenilleResponseCode.getResponseCode(status));
     }
 
     @Override

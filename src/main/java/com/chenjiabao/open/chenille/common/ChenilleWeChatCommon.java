@@ -7,8 +7,7 @@ import com.chenjiabao.open.chenille.model.ChenilleOpenId;
 import com.chenjiabao.open.chenille.model.ChenillePhoneNumber;
 import com.chenjiabao.open.chenille.model.ChenilleWeChatQrCodeResult;
 import com.chenjiabao.open.chenille.model.property.ChenilleWeChat;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.MediaType;
 import org.springframework.web.reactive.function.BodyInserters;
 import org.springframework.web.reactive.function.client.WebClient;
@@ -21,9 +20,9 @@ import java.util.Map;
  * 微信工具
  * @author ChenJiaBao
  */
+@Slf4j
 public class ChenilleWeChatCommon {
 
-    private final Logger log = LoggerFactory.getLogger(ChenilleWeChatCommon.class);
     private final ChenilleWeChat weChat;
     // 维护accessToken，不用每次都刷新
     private static ChenilleAccessToken accessToken = null;

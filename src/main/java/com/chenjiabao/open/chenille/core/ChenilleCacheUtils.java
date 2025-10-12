@@ -262,25 +262,25 @@ public record ChenilleCacheUtils(ChenilleCache chenilleCache,
     /**
      * 获取 Redis 中的字符串值
      */
-    public String getRedisString(@NonNull String key) {
+    public Optional<String> getRedisString(@NonNull String key) {
         if(isRedisNotEnabled()){
-            return null;
+            return Optional.empty();
         }
         Object object = redisTemplate.opsForValue().get(key);
         if (object == null) {
-            return null;
+            return Optional.empty();
         }
         if (object instanceof String str) {
-            return str;
+            return Optional.of(str);
         }
         if (object instanceof Number || object instanceof Boolean) {
-            return object.toString(); // 基础类型安全 toString
+            return Optional.of(object.toString()); // 基础类型安全 toString
         }
         try {
-            return jsonUtils.toJson(object);
+            return Optional.of(jsonUtils.toJson(object));
         } catch (Exception e) {
             log.warn("Redis String 转换失败 -> {}", object, e);
-            return object.toString(); // 最后兜底
+            return Optional.of(object.toString()); // 最后兜底
         }
     }
 
@@ -357,7 +357,7 @@ public record ChenilleCacheUtils(ChenilleCache chenilleCache,
         if(isRedisNotEnabled()){
             return null;
         }
-        String json = getRedisString(key);
+        String json = getRedisString(key).orElse(null);
         if (json == null) {
             return null;
         }

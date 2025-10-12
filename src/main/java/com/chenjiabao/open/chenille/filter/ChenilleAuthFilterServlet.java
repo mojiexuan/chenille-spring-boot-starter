@@ -1,5 +1,6 @@
 package com.chenjiabao.open.chenille.filter;
 
+import com.chenjiabao.open.chenille.config.ChenilleAuthProvider;
 import com.chenjiabao.open.chenille.core.ChenilleCheckUtils;
 import com.chenjiabao.open.chenille.core.ChenilleJwtUtils;
 import com.chenjiabao.open.chenille.dto.ChenilleAuthStatus;
@@ -9,6 +10,7 @@ import com.chenjiabao.open.chenille.model.property.ChenilleAuth;
 import jakarta.servlet.*;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import org.springframework.core.Ordered;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -21,21 +23,21 @@ import java.io.IOException;
  *
  * @author ChenJiaBao
  */
-public class ChenilleAuthFilterServlet implements Filter {
+public class ChenilleAuthFilterServlet implements Filter, Ordered {
 
     private final ChenilleAuth auth;
-    private final com.chenjiabao.open.chenille.config.ChenilleAuth chenilleAuth;
+    private final ChenilleAuthProvider chenilleAuthProvider;
     private final ChenilleCheckUtils chenilleCheckUtils;
     private final AntPathMatcher pathMatcher = new AntPathMatcher();
     private final ChenilleJwtUtils chenilleJwtUtils;
 
     public ChenilleAuthFilterServlet(
             ChenilleAuth auth,
-            com.chenjiabao.open.chenille.config.ChenilleAuth chenilleAuth,
+            ChenilleAuthProvider chenilleAuthProvider,
             ChenilleCheckUtils chenilleCheckUtils,
             ChenilleJwtUtils chenilleJwtUtils) {
         this.auth = auth;
-        this.chenilleAuth = chenilleAuth;
+        this.chenilleAuthProvider = chenilleAuthProvider;
         this.chenilleCheckUtils = chenilleCheckUtils;
         this.chenilleJwtUtils = chenilleJwtUtils;
     }
@@ -66,7 +68,7 @@ public class ChenilleAuthFilterServlet implements Filter {
                 // 提取负载
                 String subject = chenilleJwtUtils.parseToken(jwtToken).getSubject();
                 // 认证
-                ChenilleAuthStatus chenilleAuthStatus = chenilleAuth.auth(new ChenilleAuthFilterInfo(
+                ChenilleAuthStatus chenilleAuthStatus = chenilleAuthProvider.auth(new ChenilleAuthFilterInfo(
                         path,
                         jwtToken,
                         subject
@@ -137,4 +139,8 @@ public class ChenilleAuthFilterServlet implements Filter {
         }
     }
 
+    @Override
+    public int getOrder() {
+        return Ordered.HIGHEST_PRECEDENCE;
+    }
 }

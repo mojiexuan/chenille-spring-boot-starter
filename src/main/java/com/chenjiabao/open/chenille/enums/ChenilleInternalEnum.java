@@ -6,7 +6,7 @@ import lombok.Getter;
  * 内部会用到的枚举
  */
 public sealed interface ChenilleInternalEnum permits ChenilleInternalEnum.CommonKey,
-        ChenilleInternalEnum.ExecutorType {
+        ChenilleInternalEnum.ExecutorType,ChenilleInternalEnum.UserCacheKey {
     @Getter
     enum CommonKey implements ChenilleInternalEnum{
         /**
@@ -25,5 +25,21 @@ public sealed interface ChenilleInternalEnum permits ChenilleInternalEnum.Common
      */
     enum ExecutorType implements ChenilleInternalEnum {
         CPU, IO
+    }
+
+    /**
+     * 用户缓存键枚举
+     */
+    @Getter
+    enum UserCacheKey implements  ChenilleInternalEnum{
+        USER_KEY_TOKEN("CHENILLE:USER:TOKEN:%s"),
+        USER_KEY_INFO("CHENILLE:USER:INFO:%s");
+
+        private final String value;
+
+        UserCacheKey(String value) {
+            this.value = value;
+        }
+
     }
 }

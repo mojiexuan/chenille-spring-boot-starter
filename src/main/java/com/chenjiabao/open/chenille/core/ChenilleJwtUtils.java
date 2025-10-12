@@ -1,9 +1,13 @@
 package com.chenjiabao.open.chenille.core;
 
+import com.chenjiabao.open.chenille.exception.ChenilleChannelException;
+import com.chenjiabao.open.chenille.model.property.ChenilleJwt;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
+
 import javax.crypto.SecretKey;
 import javax.crypto.spec.SecretKeySpec;
 import java.time.ZoneId;
@@ -17,18 +21,34 @@ import java.util.Date;
  */
 @Slf4j
 public class ChenilleJwtUtils {
+
+    private final ChenilleJwt chenilleJwt;
+    private final ChenilleJsonUtils chenilleJsonUtils;
+
     // 默认密钥（至少 32 字符）
-    private static SecretKey SECRET_KEY = null;
-    // 过期时间（2小时，单位：秒）
-    private static int EXPIRES = 7200;
-    private static final ObjectMapper objectMapper = new ObjectMapper();
+    private SecretKey secretKey;
+
+    public ChenilleJwtUtils(ChenilleJwt chenilleJwt,
+                            @Autowired(required = false) ChenilleJsonUtils chenilleJsonUtils,
+                            ChenilleStringUtils chenilleStringUtils) {
+        this.chenilleJwt = chenilleJwt;
+        if (chenilleJsonUtils == null) {
+            throw new ChenilleChannelException("启用JWT功能需要同时启用 chenille.config.jackson.json.enabled=true");
+        }
+        this.chenilleJsonUtils = chenilleJsonUtils;
+        if(chenilleStringUtils.isEmpty(chenilleJwt.getSecret())){
+            secretKey = Jwts.SIG.HS256.key().build();
+        }else {
+            this.setJwtSecret(chenilleJwt.getSecret());
+        }
+    }
 
     /**
      * 设置秘钥（只能设置一次）
      * @param jwtSecret 新的秘钥（建议使用Base64编码的32位以上字符串）
      */
     public synchronized void setJwtSecret(String jwtSecret) {
-        if(SECRET_KEY == null){
+        if(secretKey == null){
             try {
                 // 解码Base64字符串
                 byte[] decodedKey = Base64.getDecoder().decode(jwtSecret);
@@ -37,31 +57,11 @@ public class ChenilleJwtUtils {
                 if (decodedKey.length < 32) {
                     throw new IllegalArgumentException("JWT 密钥的长度不足，必须至少为32字节（256位）。");
                 }
-                SECRET_KEY = new SecretKeySpec(decodedKey,"HmacSHA256");
+                secretKey = new SecretKeySpec(decodedKey,"HmacSHA256");
             } catch (Exception e) {
                 log.error("配置的 JWT 密钥应该确保是有效的 Base64 编码字符串",e);
             }
         }
-    }
-
-    /**
-     * 设置过期时间（单位：秒）
-     * @param expires 过期时间 秒
-     */
-    public synchronized void setExpires(int expires){
-        if(EXPIRES == 7200){
-            EXPIRES = expires;
-        }
-    }
-
-    /**
-     * 获取统一的签名密钥
-     */
-    private SecretKey getSigningKey() {
-        if(SECRET_KEY == null){
-            SECRET_KEY = Jwts.SIG.HS256.key().build();
-        }
-        return SECRET_KEY;
     }
 
     /**
@@ -71,19 +71,19 @@ public class ChenilleJwtUtils {
      */
     public String createToken(Object subject) {
         try {
-            String subjectJson = objectMapper.writeValueAsString(subject);
+            String subjectJson = chenilleJsonUtils.toJson(subject);
 
             // 计算东8区时间
             ZonedDateTime now = ZonedDateTime.now(ZoneId.of("GMT+8"));
             Date issuedAt = Date.from(now.toInstant());
-            Date expiration = Date.from(now.plusSeconds(EXPIRES).toInstant());
+            Date expiration = Date.from(now.plusSeconds(chenilleJwt.getExpires()).toInstant());
 
             // 生成 Token
             return Jwts.builder()
                     .subject(subjectJson)
                     .issuedAt(issuedAt)
                     .expiration(expiration)
-                    .signWith(getSigningKey(), Jwts.SIG.HS256)
+                    .signWith(this.secretKey, Jwts.SIG.HS256)
                     .compact();
         } catch (Exception e) {
             log.error("subject转JSON字符串失败 -> ", e);
@@ -98,7 +98,7 @@ public class ChenilleJwtUtils {
      */
     public Claims parseToken(String token) {
         return Jwts.parser()
-                .verifyWith(getSigningKey())
+                .verifyWith(this.secretKey)
                 .build()
                 .parseSignedClaims(token)
                 .getPayload();
@@ -115,7 +115,7 @@ public class ChenilleJwtUtils {
             String subjectJson = parseToken(token).getSubject();
 
             // 将 JSON 字符串反序列化为对象
-            return objectMapper.readValue(subjectJson, clazz);
+            return chenilleJsonUtils.fromJson(subjectJson, clazz);
         } catch (Exception e) {
             log.error("从Token中获取subject失败 -> ", e);
             throw new RuntimeException("从Token中获取subject失败 -> ", e);

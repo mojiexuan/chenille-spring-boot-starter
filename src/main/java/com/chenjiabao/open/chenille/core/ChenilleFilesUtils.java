@@ -1,11 +1,14 @@
 package com.chenjiabao.open.chenille.core;
 
-import com.chenjiabao.open.chenille.dto.ChenilleFileStatus;
+import com.chenjiabao.open.chenille.enums.ChenilleResponseCode;
+import com.chenjiabao.open.chenille.exception.ChenilleChannelException;
 import com.chenjiabao.open.chenille.model.property.ChenilleFile;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.*;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 
@@ -232,32 +235,32 @@ public record ChenilleFilesUtils(ChenilleFile fileProperty,
      * @param file 文件
      * @return ApiResponse
      */
-    public ChenilleFileStatus checkFile(MultipartFile file) {
+    public boolean checkFile(MultipartFile file) {
         if (file.isEmpty()) {
-            return new ChenilleFileStatus(406, "文件为空");
+            throw new ChenilleChannelException(ChenilleResponseCode.PARAM_ERROR, "文件为空");
         }
 
         //获取文件名
         String fileName = file.getOriginalFilename();
 
         if (fileName == null || !fileName.contains(".")) {
-            return new ChenilleFileStatus(406, "文件名异常");
+            throw new ChenilleChannelException(ChenilleResponseCode.PARAM_ERROR, "文件名异常");
         }
 
         //获取文件后缀
         String fileSuffix = fileName.substring(fileName.lastIndexOf(".")).toLowerCase();
         //判断是否支持的类型
         if (!fileProperty.getFormat().contains(fileSuffix)) {
-            return new ChenilleFileStatus(406, "文件格式不支持");
+            throw new ChenilleChannelException(ChenilleResponseCode.PARAM_ERROR, "文件格式不支持");
         }
 
         long size = file.getSize();
         // 10MB
         if (size > fileProperty.getMaxSize()) {
-            return new ChenilleFileStatus(406, "文件过大");
+            throw new ChenilleChannelException(ChenilleResponseCode.PARAM_ERROR, "文件过大");
         }
 
-        return new ChenilleFileStatus(200, "文件合法");
+        return true;
     }
 
     /**
@@ -268,38 +271,45 @@ public record ChenilleFilesUtils(ChenilleFile fileProperty,
      * @return null为失败，成功则为路径
      */
     public String saveFile(MultipartFile file, String savePath) {
-        String fileName = file.getOriginalFilename();
-        if (fileName == null || !fileName.contains(".")) {
+        String originalFileName = file.getOriginalFilename();
+        if (originalFileName == null || !originalFileName.contains(".")) {
             return null;
         }
         Paths.get("");
 
-        String fileSuffix = fileName.substring(fileName.lastIndexOf(".")).toLowerCase();
+        String fileSuffix = originalFileName.substring(originalFileName.lastIndexOf(".")).toLowerCase();
+
+        checkFile(file);
+
         //生成文件目录
         String dir = chenilleTimeUtils.getNowTime("yyyyMMdd");
-        String newFileName = chenilleTimeUtils.getNowTime("yyyyMMddHHmmss");
-        //生成随机5长度数字字符串
-        String randomNumber = chenilleRandomUtils.randomNumberString(5);
-        // 拼接新的文件名
-        newFileName = newFileName + randomNumber + fileSuffix;
+        String newFileName = chenilleTimeUtils.getNowTime("yyyyMMddHHmmss")
+                + chenilleRandomUtils.randomNumberString(5)
+                + fileSuffix;
 
-        String path = savePath + "/" + dir + "/";
+        Path baseDir = Paths.get(classesPath, savePath, dir).normalize(); // 规范化
+        Path targetPath = baseDir.resolve(newFileName).normalize();
 
-        //自动创建父目录，若不存在
-        if (!createDirectory(new File(classesPath + path))) {
-            return null;
+        // 校验路径不越界（防止 ../../ 逃逸）
+        if (!targetPath.startsWith(baseDir)) {
+            throw new ChenilleChannelException(ChenilleResponseCode.PARAM_ERROR, "非法文件路径");
         }
 
-        // 拼接完整文件名
-        String allPath = classesPath + path + newFileName;
-        // 将文件放进指定目录
+        // 创建目录
         try {
-            file.transferTo(new File(allPath));
+            Files.createDirectories(baseDir);
         } catch (IOException e) {
             return null;
         }
 
-        return path + newFileName;
+        // 将文件放进指定目录
+        try {
+            file.transferTo(targetPath.toFile());
+        } catch (IOException e) {
+            return null;
+        }
+
+        return savePath + "/" + dir + "/" + newFileName;
     }
 
     /**

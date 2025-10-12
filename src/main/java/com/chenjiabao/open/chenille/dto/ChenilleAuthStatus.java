@@ -17,6 +17,9 @@ public class ChenilleAuthStatus {
      * 是否认证成功
      */
     private boolean auth = true;
+    /**
+     * 认证成功时添加的属性，在后续的处理中可以通过该属性来获取相关信息
+     */
     private final Map<String,Object> attributes = new HashMap<>();
 
     /**

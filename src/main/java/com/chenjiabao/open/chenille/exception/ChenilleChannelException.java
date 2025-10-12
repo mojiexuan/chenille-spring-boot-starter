@@ -19,6 +19,11 @@ public class ChenilleChannelException extends RuntimeException {
         super(ChenilleResponseCode.SYSTEM_ERROR.getMessage());
     }
 
+    public ChenilleChannelException(ChenilleResponseCode code) {
+        super(ChenilleResponseCode.SYSTEM_ERROR.getMessage());
+        this.code = code;
+    }
+
     public ChenilleChannelException(String message) {
         super(message);
     }

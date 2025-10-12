@@ -2,6 +2,7 @@ package com.chenjiabao.open.chenille.filter;
 
 import com.chenjiabao.open.chenille.model.property.ChenilleApi;
 import lombok.NonNull;
+import org.springframework.core.Ordered;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.server.ServerWebExchange;
@@ -14,7 +15,7 @@ import reactor.core.publisher.Mono;
  *
  * @author ChenJiaBao
  */
-public record ChenilleCorsFilter(ChenilleApi api) implements WebFilter {
+public record ChenilleCorsFilter(ChenilleApi api) implements WebFilter, Ordered {
 
     @Override
     @NonNull
@@ -36,5 +37,10 @@ public record ChenilleCorsFilter(ChenilleApi api) implements WebFilter {
         }
 
         return chain.filter(exchange);
+    }
+
+    @Override
+    public int getOrder() {
+        return Ordered.HIGHEST_PRECEDENCE + 100;
     }
 }

@@ -6,7 +6,7 @@ import com.chenjiabao.open.chenille.model.ChenilleAuthFilterInfo;
 /**
  * @author ChenJiaBao
  */
-public interface ChenilleAuth {
+public interface ChenilleAuthProvider {
     /**
      * 认证
      * @param chenilleAuthFilterInfo 认证信息

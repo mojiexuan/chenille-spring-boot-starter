@@ -15,6 +15,8 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnWebApplication;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
+import org.springframework.core.Ordered;
+import org.springframework.core.annotation.Order;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
 @Slf4j
@@ -30,14 +32,15 @@ import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 public class ChenilleAutoConfigWebMvc implements WebMvcConfigurer {
 
     @Bean
+    @Order(Ordered.HIGHEST_PRECEDENCE)
     @ConditionalOnMissingBean
     @ConditionalOnProperty(prefix = "chenille.config.auth", name = "enabled", havingValue = "true")
     public ChenilleAuthFilterServlet chenilleAuthFilterServlet(
             ChenilleProperties chenilleProperties,
-            @Autowired(required = false) ChenilleAuth chenilleAuth,
+            @Autowired(required = false) ChenilleAuthProvider chenilleAuthProvider,
             @Autowired(required = false) ChenilleCheckUtils chenilleCheckUtils,
             @Autowired(required = false) ChenilleJwtUtils chenilleJwtUtils) {
-        if (chenilleAuth == null) {
+        if (chenilleAuthProvider == null) {
             log.error("注入 ChenilleAuthFilterFlux Bean 失败 -> 启用 chenille.config.auth 时，你需要实现 ChenilleAuth 接口");
             throw new ChenilleChannelException("注入 ChenilleAuthFilterFlux Bean 失败 -> 启用 chenille.config.auth 时，你需要实现 ChenilleAuth 接口");
         }
@@ -51,7 +54,7 @@ public class ChenilleAutoConfigWebMvc implements WebMvcConfigurer {
         }
         return new ChenilleAuthFilterServlet(
                 chenilleProperties.getAuth(),
-                chenilleAuth,
+                chenilleAuthProvider,
                 chenilleCheckUtils,
                 chenilleJwtUtils
         );

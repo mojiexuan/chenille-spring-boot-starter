@@ -2,6 +2,7 @@ package com.chenjiabao.open.chenille.filter;
 
 import com.chenjiabao.open.chenille.enums.ChenilleInternalEnum;
 import lombok.NonNull;
+import org.springframework.core.Ordered;
 import org.springframework.web.server.ServerWebExchange;
 import org.springframework.web.server.WebFilter;
 import org.springframework.web.server.WebFilterChain;
@@ -10,7 +11,7 @@ import reactor.core.publisher.Mono;
 /**
  * 上下文传递
  */
-public class ChenilleExchangeContextFilter implements WebFilter {
+public class ChenilleExchangeContextFilter implements WebFilter, Ordered {
 
     @Override
     @NonNull
@@ -21,4 +22,8 @@ public class ChenilleExchangeContextFilter implements WebFilter {
                         exchange));
     }
 
+    @Override
+    public int getOrder() {
+        return Ordered.HIGHEST_PRECEDENCE + 200;
+    }
 }

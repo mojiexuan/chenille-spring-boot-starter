@@ -1,42 +1,43 @@
 package com.chenjiabao.open.chenille.filter;
 
+import com.chenjiabao.open.chenille.config.ChenilleAuthProvider;
 import com.chenjiabao.open.chenille.core.ChenilleCheckUtils;
 import com.chenjiabao.open.chenille.core.ChenilleJwtUtils;
 import com.chenjiabao.open.chenille.dto.ChenilleAuthStatus;
+import com.chenjiabao.open.chenille.enums.ChenilleResponseCode;
+import com.chenjiabao.open.chenille.exception.ChenilleChannelException;
 import com.chenjiabao.open.chenille.model.ChenilleAuthFilterInfo;
 import com.chenjiabao.open.chenille.model.property.ChenilleAuth;
 import lombok.NonNull;
-import org.springframework.core.io.buffer.DataBuffer;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.core.Ordered;
 import org.springframework.http.HttpHeaders;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.MediaType;
-import org.springframework.http.server.reactive.ServerHttpResponse;
 import org.springframework.util.AntPathMatcher;
 import org.springframework.web.server.ServerWebExchange;
 import org.springframework.web.server.WebFilter;
 import org.springframework.web.server.WebFilterChain;
 import reactor.core.publisher.Mono;
-import java.nio.charset.StandardCharsets;
 import java.util.Locale;
 
 /**
  * @author ChenJiaBao
  */
-public class ChenilleAuthFilterFlux implements WebFilter {
+@Slf4j
+public class ChenilleAuthFilterFlux implements WebFilter, Ordered {
 
     private final ChenilleAuth auth;
-    private final com.chenjiabao.open.chenille.config.ChenilleAuth chenilleAuth;
+    private final ChenilleAuthProvider chenilleAuthProvider;
     private final ChenilleCheckUtils chenilleCheckUtils;
     private final AntPathMatcher pathMatcher = new AntPathMatcher();
     private final ChenilleJwtUtils chenilleJwtUtils;
 
     public ChenilleAuthFilterFlux(
             ChenilleAuth auth,
-            com.chenjiabao.open.chenille.config.ChenilleAuth chenilleAuth,
+            ChenilleAuthProvider chenilleAuthProvider,
             ChenilleCheckUtils chenilleCheckUtils,
             ChenilleJwtUtils chenilleJwtUtils) {
         this.auth = auth;
-        this.chenilleAuth = chenilleAuth;
+        this.chenilleAuthProvider = chenilleAuthProvider;
         this.chenilleCheckUtils = chenilleCheckUtils;
         this.chenilleJwtUtils = chenilleJwtUtils;
     }
@@ -59,8 +60,11 @@ public class ChenilleAuthFilterFlux implements WebFilter {
             if (jwtToken != null && chenilleJwtUtils.validateToken(jwtToken)) {
                 // 提取负载
                 String subject = chenilleJwtUtils.parseToken(jwtToken).getSubject();
+                if(chenilleAuthProvider == null){
+                    return chain.filter(exchange);
+                }
                 // 认证
-                ChenilleAuthStatus chenilleAuthStatus = chenilleAuth.auth(new ChenilleAuthFilterInfo(
+                ChenilleAuthStatus chenilleAuthStatus = chenilleAuthProvider.auth(new ChenilleAuthFilterInfo(
                         path,
                         jwtToken,
                         subject
@@ -71,10 +75,10 @@ public class ChenilleAuthFilterFlux implements WebFilter {
                     });
                     return chain.filter(exchange);
                 }else {
-                    return unauthorized(exchange);
+                    return unauthorized();
                 }
             }else {
-                return unauthorized(exchange);
+                return unauthorized();
             }
         }else {
             return chain.filter(exchange);
@@ -118,16 +122,13 @@ public class ChenilleAuthFilterFlux implements WebFilter {
 
     /**
      * 发送未授权响应
-     * @param exchange HTTP响应
      */
-    private Mono<Void> unauthorized(ServerWebExchange exchange){
-        ServerHttpResponse response = exchange.getResponse();
-        response.setStatusCode(HttpStatus.UNAUTHORIZED);
-        response.getHeaders().setContentType(MediaType.APPLICATION_JSON);
+    private Mono<Void> unauthorized(){
+        return Mono.error(new ChenilleChannelException(ChenilleResponseCode.FORBIDDEN, "权限不足，禁止访问"));
+    }
 
-        String body = "{\"code\":\"AUTH-4003\",\"message\":\"权限不足，禁止访问\"}";
-        DataBuffer buffer = response.bufferFactory()
-                .wrap(body.getBytes(StandardCharsets.UTF_8));
-        return response.writeWith(Mono.just(buffer));
+    @Override
+    public int getOrder() {
+        return Ordered.HIGHEST_PRECEDENCE;
     }
 }

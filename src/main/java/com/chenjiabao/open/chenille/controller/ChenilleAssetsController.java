@@ -7,8 +7,6 @@ import org.springframework.core.io.buffer.DefaultDataBufferFactory;
 import org.springframework.http.*;
 import org.springframework.http.server.reactive.ServerHttpRequest;
 import org.springframework.util.MimeType;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestMethod;
 import reactor.core.publisher.Flux;
 
 import java.io.IOException;
@@ -31,21 +29,11 @@ import java.util.Optional;
  */
 public record ChenilleAssetsController(ChenilleAssets assets) {
 
-    static class ReadState {
-        long remaining;
-        DataBuffer buffer;
-
-        ReadState(long remaining) {
-            this.remaining = remaining;
-        }
-    }
-
     /**
      * 获取静态资源
      * @param req 请求
      * @return 响应
      */
-    @RequestMapping(value = "/public/**",method = { RequestMethod.GET,RequestMethod.HEAD })
     public ResponseEntity<Flux<DataBuffer>> buildAssetsResponse(ServerHttpRequest req) {
         String requestUri = req.getURI().getPath();
         String contextPath = req.getPath().contextPath().value();
