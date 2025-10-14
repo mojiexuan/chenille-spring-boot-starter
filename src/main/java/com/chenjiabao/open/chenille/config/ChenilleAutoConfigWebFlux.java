@@ -94,6 +94,18 @@ public class ChenilleAutoConfigWebFlux implements WebFluxConfigurer {
         );
     }
 
+    @Bean
+    @ConditionalOnMissingBean
+    @ConditionalOnProperty(prefix = "chenille.config.auth.login", name = "enabled", havingValue = "true")
+    public ChenilleLoginUtils getChenilleLoginUtils(ChenilleProperties properties,
+                                                    ChenilleCacheUtils chenilleCacheUtils,
+                                                    ChenilleJwtUtils chenilleJwtUtils) {
+        return new ChenilleLoginUtils(
+                properties.getAuth().getLogin(),
+                chenilleCacheUtils,
+                chenilleJwtUtils);
+    }
+
     @Bean(name = "chenilleCorsFilter")
     @ConditionalOnMissingBean(name = "chenilleCorsFilter")
     @Order(Ordered.HIGHEST_PRECEDENCE + 100)
