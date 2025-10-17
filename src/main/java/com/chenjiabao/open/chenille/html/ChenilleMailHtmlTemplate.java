@@ -59,7 +59,7 @@ public class ChenilleMailHtmlTemplate {
             border-radius: 8px;">
                 {code}
             </p>
-            <p>2分钟内有效。请勿泄露给他人，若这不是您本人操作，请忽略。</p>
+            <p>{expireTime}内有效。请勿泄露给他人，若这不是您本人操作，请忽略。</p>
         </div>
         <div>
             <div style="margin-top: 40px;font-weight: 400;">此致</div>

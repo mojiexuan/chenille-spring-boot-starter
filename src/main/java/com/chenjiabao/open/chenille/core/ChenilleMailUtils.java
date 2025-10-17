@@ -77,12 +77,14 @@ public class ChenilleMailUtils {
      * @param code 验证码
      * @return 是否发送成功
      */
-    public boolean sendCode(String code) {
+    public boolean sendCode(String code,String expireTime) {
         try{
             this.setContent(
                     renderTemplate(
                             ChenilleMailHtmlTemplate.getCodeTemplate(),
-                            Map.of("code", code, "brand", this.brand)
+                            Map.of("code", code,
+                                    "expireTime", expireTime != null ? expireTime : "2分钟",
+                                    "brand", this.brand)
                     )
             );
             this.send();

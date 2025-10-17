@@ -9,5 +9,5 @@ import lombok.*;
 @NoArgsConstructor
 @AllArgsConstructor
 public class ChenilleMailTemplate {
-    private String brand;
+    private String brand = "Chenille";
 }

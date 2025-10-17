@@ -201,7 +201,7 @@ public class ChenilleAutoConfigCache {
 
     @Bean
     @ConditionalOnMissingBean
-    public ChenilleCacheUtils cacheUtils(ChenilleProperties chenilleProperties,
+    public ChenilleCacheUtils chenilleCacheUtils(ChenilleProperties chenilleProperties,
                                          ChenilleTwoLevelCacheManager cacheManager,
                                          @Autowired(required = false) RedisTemplate<String, Object> redisTemplate,
                                          @Autowired(required = false) ChenilleJsonUtils jsonUtils) {
@@ -217,7 +217,7 @@ public class ChenilleAutoConfigCache {
 
     @Bean
     @ConditionalOnMissingBean
-    public ChenilleCacheAspect cacheAspect(ChenilleProperties chenilleProperties,
+    public ChenilleCacheAspect chenilleCacheAspect(ChenilleProperties chenilleProperties,
                                            @Autowired(required = false) ChenilleCacheUtils cacheUtils,
                                            ChenilleStringUtils stringUtils) {
         return new ChenilleCacheAspect(chenilleProperties.getCache(), cacheUtils, stringUtils);
