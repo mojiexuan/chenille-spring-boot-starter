@@ -1,5 +1,8 @@
 package com.chenjiabao.open.chenille.core;
 
+import com.chenjiabao.open.chenille.exception.ChenilleChannelException;
+import lombok.extern.slf4j.Slf4j;
+
 import java.lang.reflect.Array;
 import java.util.*;
 import java.util.function.Function;
@@ -11,7 +14,22 @@ import java.util.stream.StreamSupport;
  *
  * @author ChenJiaBao
  */
+@Slf4j
 public record ChenilleObjectUtils(ChenilleNumberUtils chenilleNumberUtils) {
+
+    /**
+     * 检查对象是否为null, 为null则抛出异常
+     *
+     * @param obj     对象
+     * @param message 异常信息
+     * @param <T>     对象类型
+     */
+    public <T> void requireNonNull(T obj, String message) {
+        if (obj == null) {
+            log.error(message);
+            throw new ChenilleChannelException(message);
+        }
+    }
 
     /**
      * 比较两个对象是否相等

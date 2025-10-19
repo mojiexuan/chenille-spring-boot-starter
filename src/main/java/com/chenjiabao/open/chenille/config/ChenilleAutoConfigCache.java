@@ -27,7 +27,9 @@ import org.springframework.cache.caffeine.CaffeineCacheManager;
 import org.springframework.context.annotation.Bean;
 import org.springframework.data.redis.cache.RedisCacheConfiguration;
 import org.springframework.data.redis.cache.RedisCacheManager;
+import org.springframework.data.redis.connection.ReactiveRedisConnectionFactory;
 import org.springframework.data.redis.connection.RedisConnectionFactory;
+import org.springframework.data.redis.core.ReactiveRedisTemplate;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.listener.PatternTopic;
 import org.springframework.data.redis.listener.RedisMessageListenerContainer;
@@ -111,6 +113,25 @@ public class ChenilleAutoConfigCache {
     @EnableConfigurationProperties(ChenilleProperties.class)
     @ConditionalOnProperty(prefix = "chenille.config.cache.redis", name = "enabled", havingValue = "true")
     static class RedisCacheConfig {
+
+        @Bean
+        @ConditionalOnMissingBean
+        public ReactiveRedisTemplate<String,Object> reactiveRedisTemplate(ReactiveRedisConnectionFactory reactiveRedisConnectionFactory){
+            // Key 序列化器
+            RedisSerializationContext.RedisSerializationContextBuilder<String, Object> builder =
+                    RedisSerializationContext.newSerializationContext(new StringRedisSerializer());
+
+            // Value 序列化器
+            RedisSerializationContext<String, Object> context = builder
+                    .key(new StringRedisSerializer())
+                    .value(new GenericJackson2JsonRedisSerializer())
+                    .hashKey(new StringRedisSerializer())
+                    .hashValue(new GenericJackson2JsonRedisSerializer())
+                    .build();
+
+            return new ReactiveRedisTemplate<>(reactiveRedisConnectionFactory, context);
+        }
+
         @Bean
         @ConditionalOnMissingBean
         public RedisTemplate<String, Object> redisTemplate(RedisConnectionFactory redisConnectionFactory) {
@@ -203,7 +224,7 @@ public class ChenilleAutoConfigCache {
     @ConditionalOnMissingBean
     public ChenilleCacheUtils chenilleCacheUtils(ChenilleProperties chenilleProperties,
                                          ChenilleTwoLevelCacheManager cacheManager,
-                                         @Autowired(required = false) RedisTemplate<String, Object> redisTemplate,
+                                         @Autowired(required = false) ReactiveRedisTemplate<String, Object> reactiveRedisTemplate,
                                          @Autowired(required = false) ChenilleJsonUtils jsonUtils) {
         if (jsonUtils == null) {
             log.error("注入 ChenilleCacheUtils Bean 失败 -> 启用 chenille.config.cache 时，需要同时启用 chenille.config.jackson.json");
@@ -211,7 +232,7 @@ public class ChenilleAutoConfigCache {
         }
         return new ChenilleCacheUtils(chenilleProperties.getCache(),
                 cacheManager,
-                redisTemplate,
+                reactiveRedisTemplate,
                 jsonUtils);
     }
 

@@ -70,9 +70,8 @@ public class ChenilleAuthFilterFlux implements WebFilter, Ordered {
                         subject
                 ));
                 if(chenilleAuthStatus.isAuth()){
-                    chenilleAuthStatus.getAttributes().forEach((k,v)->{
-                        exchange.getAttributes().put(k,v);
-                    });
+                    chenilleAuthStatus.getAttributes().forEach((k,v)->
+                            exchange.getAttributes().put(k,v));
                     return chain.filter(exchange);
                 }else {
                     return unauthorized();

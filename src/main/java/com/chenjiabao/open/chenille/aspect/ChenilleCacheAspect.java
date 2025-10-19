@@ -5,7 +5,6 @@ import com.chenjiabao.open.chenille.annotation.ChenilleCacheable;
 import com.chenjiabao.open.chenille.cache.ChenilleSpElParser;
 import com.chenjiabao.open.chenille.core.ChenilleCacheUtils;
 import com.chenjiabao.open.chenille.core.ChenilleStringUtils;
-import com.chenjiabao.open.chenille.enums.ChenilleCacheType;
 import com.chenjiabao.open.chenille.model.property.ChenilleCache;
 import com.fasterxml.jackson.core.type.TypeReference;
 import org.aspectj.lang.JoinPoint;
@@ -14,9 +13,9 @@ import org.aspectj.lang.annotation.After;
 import org.aspectj.lang.annotation.Around;
 import org.aspectj.lang.annotation.Aspect;
 import org.aspectj.lang.reflect.MethodSignature;
+import reactor.core.publisher.Mono;
 
 import java.lang.reflect.Type;
-import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 
 @Aspect
@@ -25,8 +24,8 @@ public record ChenilleCacheAspect(ChenilleCache chenilleCache,
                                   ChenilleStringUtils stringUtils) {
 
     @Around("@annotation(chenilleCacheable)")
-    public Object aroundCacheable(ProceedingJoinPoint joinPoint,
-                                  ChenilleCacheable chenilleCacheable) throws Throwable {
+    public Mono<Object> aroundCacheable(ProceedingJoinPoint joinPoint,
+                                ChenilleCacheable chenilleCacheable) throws Throwable {
         MethodSignature signature = (MethodSignature) joinPoint.getSignature();
         Class<?> returnType = signature.getReturnType();
         Type genericReturnType = signature.getMethod().getGenericReturnType();
@@ -34,67 +33,54 @@ public record ChenilleCacheAspect(ChenilleCache chenilleCache,
         // 解析key
         String key = ChenilleSpElParser.parseKey(chenilleCacheable.key(), joinPoint);
 
-        String cacheName = chenilleCacheable.cacheName();
-        if (stringUtils.isBlank(cacheName)) {
-            cacheName = chenilleCache.getName();
-        }
-
-        // 尝试从缓存获取
-        Object result;
+        // 获取缓存名
+        String cacheName = stringUtils.isBlank(chenilleCacheable.cacheName())
+                ? chenilleCache.getName()
+                : chenilleCacheable.cacheName();
 
         long ttl = chenilleCacheable.ttl();
+
         if(ttl <= 0){
             // ----------- 一级/二级缓存模式 ------------
-            result = cacheUtils.get(cacheName, key, returnType);
-
-            if (result != null) {
-                return result;
-            }
-
-            // 执行方法
-            result = joinPoint.proceed();
-
-            // 二级缓存
-            if(chenilleCacheable.syncToSecondary()){
-                cacheUtils.put(cacheName, key, result);
-            }else {
-                cacheUtils.putLocal(cacheName, key, result);
-            }
+            return cacheUtils.computeIfAbsent(cacheName, key, k ->
+                    Mono.defer(() -> {
+                        try {
+                            Object result = joinPoint.proceed();
+                            return Mono.just(result);
+                        } catch (Throwable e) {
+                            return Mono.error(e);
+                        }
+                    })
+            ).cast(Object.class);
         }else {
             // ----------- 纯 Redis 模式 ------------
-            result = cacheUtils.getRedisJson(key, new TypeReference<>() {
+            return cacheUtils.getRedisJson(key, new TypeReference<>() {
                 @Override
                 public Type getType() {
                     return genericReturnType;
                 }
-            });
-
-            if (result != null) {
-                return result;
-            }
-
-            // 执行方法
-            result = joinPoint.proceed();
-
-            // 走纯redis
-            if (chenilleCacheable.randomRange() > 0) {
-                ttl += ThreadLocalRandom.current().nextLong(chenilleCacheable.randomRange());
-            }
-            cacheUtils.putRedis(key,result, ChenilleCacheType.JSON,ttl,TimeUnit.MINUTES);
+            }).switchIfEmpty(
+                    Mono.defer(() -> {
+                        try {
+                            Object result = joinPoint.proceed();
+                            return cacheUtils.putRedis(key, result, ttl, TimeUnit.MINUTES)
+                                    .thenReturn(result);
+                        } catch (Throwable e) {
+                            return Mono.error(e);
+                        }
+                    })
+            );
         }
-
-        return result;
     }
 
     @After("@annotation(chenilleCacheEvict)")
-    public void afterCacheEvict(JoinPoint joinPoint, ChenilleCacheEvict chenilleCacheEvict) {
+    public Mono<Void> afterCacheEvict(JoinPoint joinPoint, ChenilleCacheEvict chenilleCacheEvict) {
         String key = ChenilleSpElParser.parseKey(chenilleCacheEvict.key(), joinPoint);
 
-        String cacheName = chenilleCacheEvict.cacheName();
-        if (stringUtils.isBlank(cacheName)) {
-            cacheName = chenilleCache.getName();
-        }
+        String cacheName = stringUtils.isBlank(chenilleCacheEvict.cacheName())
+                ? chenilleCache.getName()
+                : chenilleCacheEvict.cacheName();
 
-        cacheUtils.evict(cacheName, key);
+        return cacheUtils.evict(cacheName, key);
     }
 }

@@ -2,7 +2,6 @@ package com.chenjiabao.open.chenille.core;
 
 import com.chenjiabao.open.chenille.cache.ChenilleTwoLevelCache;
 import com.chenjiabao.open.chenille.cache.ChenilleTwoLevelCacheManager;
-import com.chenjiabao.open.chenille.enums.ChenilleCacheType;
 import com.chenjiabao.open.chenille.exception.ChenilleChannelException;
 import com.chenjiabao.open.chenille.model.property.ChenilleCache;
 import com.fasterxml.jackson.core.type.TypeReference;
@@ -10,8 +9,11 @@ import jakarta.annotation.Nullable;
 import lombok.NonNull;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.cache.Cache;
-import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.data.redis.core.ReactiveRedisTemplate;
+import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
 
+import java.time.Duration;
 import java.util.*;
 import java.util.concurrent.Callable;
 import java.util.concurrent.TimeUnit;
@@ -23,213 +25,226 @@ import java.util.function.Function;
 @Slf4j
 public record ChenilleCacheUtils(ChenilleCache chenilleCache,
                                  ChenilleTwoLevelCacheManager cacheManager,
-                                 RedisTemplate<String, Object> redisTemplate,
+                                 ReactiveRedisTemplate<String, Object> reactiveRedisTemplate,
                                  ChenilleJsonUtils  jsonUtils) {
 
     /**
      * 放入缓存（默认缓存）
      */
-    public void put(@NonNull String key, @NonNull Object value) {
-        put(chenilleCache.getName(), key, value);
+    public Mono<Void> put(@NonNull String key, @NonNull Object value) {
+        return put(chenilleCache.getName(), key, value);
     }
 
     /**
      * 放入缓存
      */
-    public void put(@NonNull String cacheName,@NonNull String key, @NonNull Object value) {
-        executeOnCache(cacheName, cache -> cache.put(key, value));
+    public Mono<Void> put(@NonNull String cacheName,@NonNull String key, @NonNull Object value) {
+        return executeOnCache(cacheName, cache -> cache.put(key, value));
     }
 
     /**
      * 放入缓存，仅放入一级缓存
      */
-    public void putLocal(@NonNull Object key, Object value){
-        putLocal(chenilleCache.getName(), key, value);
+    public Mono<Void> putLocal(@NonNull Object key, Object value){
+        return putLocal(chenilleCache.getName(), key, value);
     }
 
     /**
      * 放入缓存，仅放入一级缓存
      */
-    public void putLocal(@NonNull String cacheName,@NonNull Object key, Object value){
-        executeOnCache(cacheName, cache -> cache.putLocal(key, value));
+    public Mono<Void> putLocal(@NonNull String cacheName,@NonNull Object key, Object value){
+        return executeOnCache(cacheName, cache -> cache.putLocal(key, value));
     }
 
     /**
      * 放入缓存，仅放入二级缓存
      */
-    public void putRemote(@NonNull Object key, Object value){
-        putRemote(chenilleCache.getName(), key, value);
+    public Mono<Void> putRemote(@NonNull Object key, Object value){
+        return putRemote(chenilleCache.getName(), key, value);
     }
 
     /**
      * 放入缓存，仅放入二级缓存
      */
-    public void putRemote(@NonNull String cacheName,@NonNull Object key, Object value){
-        executeOnCache(cacheName, cache -> cache.putRemote(key, value));
+    public Mono<Void> putRemote(@NonNull String cacheName,@NonNull Object key, Object value){
+        return executeOnCache(cacheName, cache -> cache.putRemote(key, value));
     }
 
     /**
      * 获取缓存值（默认缓存）
      */
-    @Nullable
-    public <K, V> V get(@NonNull K key, @NonNull Class<V> type) {
+    public <K, V> Mono<V> get(@NonNull K key, @NonNull Class<V> type) {
         return get(chenilleCache.getName(), key, type);
     }
 
     /**
      * 获取缓存值
      */
-    @Nullable
-    public <K, V> V get(@NonNull String cacheName, @NonNull K key, @NonNull Class<V> type) {
-        return executeOnCacheWithResult(cacheName, cache -> cache.get(key, type));
+    public <K, V> Mono<V> get(@NonNull String cacheName, @NonNull K key, @NonNull Class<V> type) {
+        return executeOnCacheWithResult(cacheName, cache -> Mono.fromCallable(() -> cache.get(key, type))
+                .flatMap(v -> v == null ? Mono.empty() : Mono.just(v))
+                .onErrorResume(Mono::error));
     }
 
     /**
      * 获取缓存值（默认缓存）
      */
-    @Nullable
-    public <K, V> V get(@NonNull K key, @NonNull Callable<V> valueLoader) {
+    public <K, V> Mono<V> get(@NonNull K key, @NonNull Callable<V> valueLoader) {
         return get(chenilleCache.getName(), key, valueLoader);
     }
 
     /**
      * 获取缓存值（带加载器）
      */
-    @Nullable
-    public <K, V> V get(@NonNull String cacheName, @NonNull K key, @NonNull Callable<V> valueLoader) {
-        return executeOnCacheWithResult(cacheName, cache -> cache.get(key, valueLoader));
+    public <K, V> Mono<V> get(@NonNull String cacheName, @NonNull K key, @NonNull Callable<V> loader) {
+        return executeOnCacheWithResult(cacheName, cache ->
+                Mono.fromCallable(() -> {
+                    Cache.ValueWrapper wrapper = cache.get(key);
+                    if (wrapper != null && wrapper.get() != null) {
+                        return (V) wrapper.get();
+                    }
+                    V v = loader.call();
+                    cache.put(key, v);
+                    return v;
+                })
+        );
     }
 
     /**
      * 删除缓存（默认缓存）
      */
-    public void evict(@NonNull Object key) {
-        evict(chenilleCache.getName(), key);
+    public Mono<Void> evict(@NonNull Object key) {
+        return evict(chenilleCache.getName(), key);
     }
 
     /**
      * 删除缓存
      */
-    public void evict(@NonNull String cacheName,@NonNull Object key) {
-        executeOnCache(cacheName, cache -> cache.evict(key));
+    public Mono<Void> evict(@NonNull String cacheName,@NonNull Object key) {
+        return executeOnCache(cacheName, cache -> cache.evict(key));
     }
 
     /**
      * 删除缓存（本地一级缓存）
      */
-    public void evictLocal(@NonNull Object key) {
-        evictLocal(chenilleCache.getName(), key);
+    public Mono<Void> evictLocal(@NonNull Object key) {
+        return evictLocal(chenilleCache.getName(), key);
     }
 
     /**
      * 删除缓存（本地一级缓存）
      */
-    public void evictLocal(@NonNull String cacheName,@NonNull Object key) {
-        executeOnCache(cacheName, cache -> cache.evictLocal(key));
+    public Mono<Void> evictLocal(@NonNull String cacheName,@NonNull Object key) {
+        return executeOnCache(cacheName, cache -> cache.evictLocal(key));
     }
 
     /**
      * 删除缓存（二级缓存）
      */
-    public void evictRemote(@NonNull Object key) {
-        evictRemote(chenilleCache.getName(), key);
+    public Mono<Void> evictRemote(@NonNull Object key) {
+        return evictRemote(chenilleCache.getName(), key);
     }
 
     /**
      * 删除缓存（二级缓存）
      */
-    public void evictRemote(@NonNull String cacheName,@NonNull Object key) {
-        executeOnCache(cacheName, cache -> cache.evictRemote(key));
+    public Mono<Void> evictRemote(@NonNull String cacheName,@NonNull Object key) {
+        return executeOnCache(cacheName, cache -> cache.evictRemote(key));
     }
 
     /**
      * 清空缓存
      */
-    public void clear(){
-        clear(chenilleCache.getName());
+    public Mono<Void> clear(){
+        return clear(chenilleCache.getName());
     }
 
     /**
      * 清空缓存
      */
-    public void clear(@NonNull String cacheName) {
-        executeOnCache(cacheName, Cache::clear);
+    public Mono<Void> clear(@NonNull String cacheName) {
+        return executeOnCache(cacheName, Cache::clear);
     }
 
     /**
      * 清空缓存（本地一级缓存）
      */
-    public void clearLocal() {
-        clearLocal(chenilleCache.getName());
+    public Mono<Void> clearLocal() {
+        return clearLocal(chenilleCache.getName());
     }
 
     /**
      * 清空缓存（本地一级缓存）
      */
-    public void clearLocal(@NonNull String cacheName) {
-        executeOnCache(cacheName, ChenilleTwoLevelCache::clearLocal);
+    public Mono<Void> clearLocal(@NonNull String cacheName) {
+        return executeOnCache(cacheName, ChenilleTwoLevelCache::clearLocal);
     }
 
     /**
      * 清空缓存（二级缓存）
      */
-    public void clearRemote() {
-        clearRemote(chenilleCache.getName());
+    public Mono<Void> clearRemote() {
+        return clearRemote(chenilleCache.getName());
     }
 
     /**
      * 清空缓存（二级缓存）
      */
-    public void clearRemote(@NonNull String cacheName) {
-        executeOnCache(cacheName, ChenilleTwoLevelCache::clearRemote);
+    public Mono<Void> clearRemote(@NonNull String cacheName) {
+        return executeOnCache(cacheName, ChenilleTwoLevelCache::clearRemote);
     }
 
     /**
      * 获取或计算并缓存（如果不存在则存入）
      */
-    @Nullable
-    public <K, V> V computeIfAbsent(@NonNull K key,
-                                    @NonNull Function<K, V> mappingFunction) {
+    public <K, V> Mono<V> computeIfAbsent(@NonNull K key,
+                                    @NonNull Function<K, Mono<V>> mappingFunction) {
         return computeIfAbsent(chenilleCache.getName(), key, mappingFunction);
     }
 
     /**
      * 获取或计算并缓存（如果不存在则存入）
      */
-    @Nullable
     @SuppressWarnings("unchecked")
-    public <K, V> V computeIfAbsent(@NonNull String cacheName, @NonNull K key,
-                                    @NonNull Function<K, V> mappingFunction) {
-        return executeOnCacheWithResult(cacheName,cache -> {
-            Cache.ValueWrapper value = cache.get(key);
-            if (value == null) {
-                V v = mappingFunction.apply(key);
-                cache.put(key, v);
-                return v;
+    public <K, V> Mono<V> computeIfAbsent(@NonNull String cacheName, @NonNull K key,
+                                    @NonNull Function<K, Mono<V>> mappingFunction) {
+        return executeOnCacheWithResult(cacheName, cache ->
+                Mono.defer(() -> {
+                    Cache.ValueWrapper wrapper = cache.get(key);
+                    if (wrapper != null && wrapper.get() != null) {
+                        return Mono.just((V) Objects.requireNonNull(wrapper.get()));
+                    }
+                    // 通过 Reactive Supplier 获取数据
+                    return mappingFunction.apply(key)
+                            .doOnNext(v -> cache.put(key, v));
+                })
+        );
+    }
+
+    /**
+     * 执行缓存操作
+     */
+    private <T> Mono<T> executeOnCacheWithResult(@NonNull String cacheName,
+                                           @NonNull Function<ChenilleTwoLevelCache, Mono<T>> function) {
+        return Mono.defer(() -> {
+            ChenilleTwoLevelCache cache = getCache(cacheName);
+            if (cache == null) {
+                return Mono.error(new ChenilleChannelException("缓存 '" + cacheName + "' 不存在"));
             }
-            return (V) value.get();
+            return function.apply(cache);
         });
     }
 
     /**
      * 执行缓存操作
      */
-    @Nullable
-    private <T> T executeOnCacheWithResult(@NonNull String cacheName,
-                                           @NonNull Function<ChenilleTwoLevelCache, T> function) {
-        ChenilleTwoLevelCache cache = getCache(cacheName);
-        return cache != null ? function.apply(cache) : null;
-    }
-
-    /**
-     * 执行缓存操作
-     */
-    private void executeOnCache(@NonNull String cacheName,
+    private Mono<Void> executeOnCache(@NonNull String cacheName,
                                 @NonNull Consumer<ChenilleTwoLevelCache> consumer) {
         ChenilleTwoLevelCache cache = getCache(cacheName);
         if (cache != null) {
             consumer.accept(cache);
         }
+        return Mono.empty();
     }
 
     @Nullable
@@ -252,98 +267,66 @@ public record ChenilleCacheUtils(ChenilleCache chenilleCache,
      * 检查 Redis 是否未启用
      */
     private boolean isRedisNotEnabled() {
-        if(redisTemplate == null){
-            log.warn("你需要启用chenille.config.cache.redis配置!");
-            return true;
-        }
-        return false;
+        boolean notEnabled = reactiveRedisTemplate == null;
+        if (notEnabled) log.warn("Redis 未启用，请检查 chenille.config.cache.redis 配置！");
+        return notEnabled;
     }
 
     /**
      * 获取 Redis 中的字符串值
      */
-    public Optional<String> getRedisString(@NonNull String key) {
-        if(isRedisNotEnabled()){
-            return Optional.empty();
-        }
-        Object object = redisTemplate.opsForValue().get(key);
-        if (object == null) {
-            return Optional.empty();
-        }
-        if (object instanceof String str) {
-            return Optional.of(str);
-        }
-        if (object instanceof Number || object instanceof Boolean) {
-            return Optional.of(object.toString()); // 基础类型安全 toString
-        }
-        try {
-            return Optional.of(jsonUtils.toJson(object));
-        } catch (Exception e) {
-            log.warn("Redis String 转换失败 -> {}", object, e);
-            return Optional.of(object.toString()); // 最后兜底
-        }
+    public Mono<String> getRedisString(@NonNull String key) {
+        if (isRedisNotEnabled()) return Mono.empty();
+
+        return reactiveRedisTemplate.opsForValue().get(key)
+                .flatMap(value -> {
+                    if (value == null) return Mono.empty();
+                    if (value instanceof String str) return Mono.just(str);
+                    if (value instanceof Number || value instanceof Boolean) return Mono.just(value.toString());
+                    try {
+                        return Mono.just(jsonUtils.toJson(value));
+                    } catch (Exception e) {
+                        log.warn("Redis 值转换 JSON 失败 key={} value={}", key, value, e);
+                        return Mono.just(value.toString());
+                    }
+                });
     }
 
     /**
      * 获取 Redis 中的 List 值
      */
-    public <T> List<T> getRedisList(@NonNull String key, @NonNull Class<T> clazz) {
-        if(isRedisNotEnabled()){
-            return null;
-        }
-        List<Object> objects = redisTemplate.opsForList().range(key, 0, -1);
-        if (objects == null || objects.isEmpty()) {
-            return Collections.emptyList();
-        }
-        List<T> list = new ArrayList<>();
-        for (Object obj : objects) {
-            if (clazz.isInstance(obj)) {
-                list.add(clazz.cast(obj));  // 安全转换
-            }
-        }
-        return list;
+    public <T> Flux<T> getRedisList(@NonNull String key, @NonNull Class<T> clazz) {
+        if (isRedisNotEnabled()) return Flux.empty();
+        return reactiveRedisTemplate.opsForList().range(key, 0, -1)
+                .filter(clazz::isInstance)
+                .map(clazz::cast);
     }
 
     /**
      * 获取 Redis 中的 Set 值
      */
-    public <T> Set<T> getRedisSet(@NonNull String key, @NonNull Class<T> clazz) {
-        if(isRedisNotEnabled()){
-            return null;
-        }
-        Set<T> set = new HashSet<>();
-        Set<Object> objects = redisTemplate.opsForSet().members(key);
-        if (objects == null || objects.isEmpty()) {
-            return Collections.emptySet();
-        }
-        for (Object obj : objects) {
-            if (clazz.isInstance(obj)) {
-                set.add(clazz.cast(obj));  // 安全转换
-            }
-        }
-        return set;
+    public <T> Flux<T> getRedisSet(@NonNull String key, @NonNull Class<T> clazz) {
+        if (isRedisNotEnabled()) return Flux.empty();
+        return reactiveRedisTemplate.opsForSet().members(key)
+                .filter(clazz::isInstance)
+                .map(clazz::cast);
     }
 
     /**
      * 获取 Redis 中的 Map 值
      */
-    public <K, V> Map<K, V> getRedisMap(@NonNull String key,
+    public <K, V> Mono<Map<K, V>> getRedisMap(@NonNull String key,
                                         @NonNull Class<K> keyClazz,
                                         @NonNull Class<V> valueClazz) {
-        if(isRedisNotEnabled()){
-            return null;
-        }
-        Map<Object, Object> map = redisTemplate.opsForHash().entries(key);
-        if (map.isEmpty()) {
-            return Collections.emptyMap();
-        }
-        Map<K, V> result = new HashMap<>();
-        for (Map.Entry<Object, Object> entry : map.entrySet()) {
-            if (keyClazz.isInstance(entry.getKey()) && valueClazz.isInstance(entry.getValue())) {
-                result.put(keyClazz.cast(entry.getKey()), valueClazz.cast(entry.getValue()));
-            }
-        }
-        return result;
+        if (isRedisNotEnabled()) return Mono.empty();
+
+        return reactiveRedisTemplate.opsForHash().entries(key)
+                // 过滤类型
+                .filter(entry -> keyClazz.isInstance(entry.getKey()) && valueClazz.isInstance(entry.getValue()))
+                // 转换类型
+                .map(entry -> Map.entry(keyClazz.cast(entry.getKey()), valueClazz.cast(entry.getValue())))
+                // 收集为 Map
+                .collectMap(Map.Entry::getKey, Map.Entry::getValue);
     }
 
     /**
@@ -353,20 +336,16 @@ public record ChenilleCacheUtils(ChenilleCache chenilleCache,
      * @param typeReference 类型引用
      * @return JSON 反序列化后的对象
      */
-    public <T> T getRedisJson(@NonNull String key, @NonNull TypeReference<T> typeReference) {
-        if(isRedisNotEnabled()){
-            return null;
-        }
-        String json = getRedisString(key).orElse(null);
-        if (json == null) {
-            return null;
-        }
-        try {
-            return jsonUtils.fromJson(json, typeReference);
-        } catch (Exception e) {
-            log.warn("Redis JSON 反序列化失败 key={} value={}", key, json, e);
-            return null;
-        }
+    public <T> Mono<T> getRedisJson(@NonNull String key, @NonNull TypeReference<T> typeReference) {
+        return getRedisString(key)
+                .flatMap(json -> {
+                    try {
+                        return Mono.just(jsonUtils.fromJson(json, typeReference));
+                    } catch (Exception e) {
+                        log.warn("Redis JSON 反序列化失败 key={} value={}", key, json, e);
+                        return Mono.empty();
+                    }
+                });
     }
 
     /**
@@ -379,114 +358,51 @@ public record ChenilleCacheUtils(ChenilleCache chenilleCache,
      * @param ttl 过期时间
      * @param timeUnit 时间单位
      */
-    public void putRedis(@NonNull String key, Object value,long ttl, @NonNull TimeUnit timeUnit){
-        if(isRedisNotEnabled()){
-            return;
-        }
+    public Mono<Void> putRedis(@NonNull String key, Object value,long ttl, @NonNull TimeUnit timeUnit){
+        if (isRedisNotEnabled()) return Mono.empty();
+
+        Mono<Boolean> putMono;
+
         if (value instanceof String || value instanceof Number || value instanceof Boolean) {
-            // 直接存为 String
-            redisTemplate.opsForValue().set(key, value, ttl, timeUnit);
-        } else if (value instanceof Map<?, ?>) {
-            // 存为 Hash
-            redisTemplate.opsForHash().putAll(key, (Map<?, ?>) value);
-            redisTemplate.expire(key, ttl, timeUnit);
-        } else if (value instanceof List<?>) {
-            // 存为 List
-            redisTemplate.opsForList().rightPushAll(key, value);
-            redisTemplate.expire(key, ttl, timeUnit);
-        } else if (value instanceof Set<?>) {
-            // 存为 Set
-            redisTemplate.opsForSet().add(key, ((Set<?>) value).toArray());
-            redisTemplate.expire(key, ttl, timeUnit);
+            putMono = reactiveRedisTemplate.opsForValue().set(key, value, Duration.ofMillis(timeUnit.toMillis(ttl)));
+        } else if (value instanceof Map<?, ?> map) {
+            putMono = reactiveRedisTemplate.opsForHash().putAll(key, map)
+                    .then(reactiveRedisTemplate.expire(key, Duration.ofMillis(timeUnit.toMillis(ttl))));
+        } else if (value instanceof List<?> list) {
+            putMono = reactiveRedisTemplate.opsForList().rightPushAll(key, list)
+                    .then(reactiveRedisTemplate.expire(key, Duration.ofMillis(timeUnit.toMillis(ttl))));
+        } else if (value instanceof Set<?> set) {
+            putMono = reactiveRedisTemplate.opsForSet().add(key, set.toArray())
+                    .then(reactiveRedisTemplate.expire(key, Duration.ofMillis(timeUnit.toMillis(ttl))));
         } else {
-            // 其他对象 → 转 JSON 存 String
-            redisTemplate.opsForValue().set(key, jsonUtils.toJson(value), ttl, timeUnit);
+            putMono = reactiveRedisTemplate.opsForValue().set(key, jsonUtils.toJson(value), Duration.ofMillis(timeUnit.toMillis(ttl)));
         }
+
+        return putMono.then();
     }
 
-    /**
-     * redis 缓存
-     * <p>
-     * 不必启用 chenille.config.cache.redis 配置
-     * <p>
-     * 不被二级缓存管理器管理，直接走 RedisTemplate
-     *
-     * @param type 缓存类型（STRING / HASH / LIST / SET / JSON）
-     * @param ttl 过期时间
-     * @param timeUnit 时间单位
-     */
-    public void putRedis(@NonNull String key,
-                         Object value,
-                         @NonNull ChenilleCacheType type,
-                         long ttl,
-                         @NonNull TimeUnit timeUnit){
-        if(isRedisNotEnabled()){
-            return;
-        }
-        switch (type) {
-            case STRING -> {
-                // 普通类型：String / Number / Boolean，否则走 JSON
-                if (value instanceof String || value instanceof Number || value instanceof Boolean) {
-                    redisTemplate.opsForValue().set(key, value, ttl, timeUnit);
-                    return;
-                }
-            }
-            case HASH -> {
-                if (value instanceof Map<?, ?> map) {
-                    redisTemplate.opsForHash().putAll(key, map);
-                    redisTemplate.expire(key, ttl, timeUnit);
-                    return;
-                }
-            }
-            case LIST -> {
-                if (value instanceof List<?> list) {
-                    redisTemplate.opsForList().rightPushAll(key, list);
-                    redisTemplate.expire(key, ttl, timeUnit);
-                    return;
-                }
-            }
-            case SET -> {
-                if (value instanceof Collection<?> collection) {
-                    redisTemplate.opsForSet().add(key, collection.toArray());
-                    redisTemplate.expire(key, ttl, timeUnit);
-                    return;
-                }else if (value.getClass().isArray()) {
-                    redisTemplate.opsForSet().add(key, (Object[]) value);
-                    redisTemplate.expire(key, ttl, timeUnit);
-                    return;
-                }
-            }
-        }
-        redisTemplate.opsForValue().set(key, jsonUtils.toJson(value), ttl, timeUnit);
-    }
 
     /**
      * 判断 Redis 中是否存在指定的 key
      */
-    public boolean containsRedisKey(@NonNull String key) {
-        if(isRedisNotEnabled()){
-            return false;
-        }
-        return redisTemplate.hasKey(key);
+    public Mono<Boolean> containsRedisKey(@NonNull String key) {
+        if (isRedisNotEnabled()) return Mono.just(false);
+        return reactiveRedisTemplate.hasKey(key);
     }
 
     /**
      * 删除 Redis 中的指定 key
      */
-    public boolean deleteRedisKey(@NonNull String key) {
-        if(isRedisNotEnabled()){
-            return false;
-        }
-        return redisTemplate.delete(key);
+    public Mono<Boolean> deleteRedisKey(@NonNull String key) {
+        if (isRedisNotEnabled()) return Mono.just(false);
+        return reactiveRedisTemplate.delete(key).then(Mono.just(true));
     }
 
     /**
      * 更新 Redis 中指定 key 的过期时间
      */
-    public boolean updateRedisKeyExpire(@NonNull String key, long ttl, @NonNull TimeUnit timeUnit) {
-        if(isRedisNotEnabled()){
-            return false;
-        }
-        return redisTemplate.expire(key, ttl, timeUnit);
+    public Mono<Boolean> expireRedisKey(@NonNull String key, long ttl, @NonNull TimeUnit timeUnit) {
+        if (isRedisNotEnabled()) return Mono.just(false);
+        return reactiveRedisTemplate.expire(key, Duration.ofMillis(timeUnit.toMillis(ttl)));
     }
 }

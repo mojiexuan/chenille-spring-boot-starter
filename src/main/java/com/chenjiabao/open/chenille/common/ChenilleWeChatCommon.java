@@ -1,18 +1,19 @@
 package com.chenjiabao.open.chenille.common;
 
-import com.chenjiabao.open.chenille.core.ChenilleDelayedTaskExecutor;
 import com.chenjiabao.open.chenille.exception.ChenilleChannelException;
 import com.chenjiabao.open.chenille.model.ChenilleAccessToken;
 import com.chenjiabao.open.chenille.model.ChenilleOpenId;
 import com.chenjiabao.open.chenille.model.ChenillePhoneNumber;
 import com.chenjiabao.open.chenille.model.ChenilleWeChatQrCodeResult;
 import com.chenjiabao.open.chenille.model.property.ChenilleWeChat;
+import lombok.NonNull;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.MediaType;
 import org.springframework.web.reactive.function.BodyInserters;
 import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Mono;
 
+import java.time.Duration;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -38,32 +39,36 @@ public class ChenilleWeChatCommon {
     /**
      * 获取微信端OpenId
      * @param jsCode 微信端临时jsCode
-     * @return OpenId,空字符串表示获取失败
+     * @return OpenId
      */
-    public String requestOpenId(String jsCode) throws ChenilleChannelException {
-        try{
-            // 请求微信端
-            ChenilleOpenId openId = webClient.get().uri(weChat.getUrl().getOpenId()
-                    + "?appid=" + weChat.getAppId()
-                    + "&secret=" + weChat.getAppSecret()
-                    + "&js_code=" + jsCode
-                    + "&grant_type=authorization_code")
-                    .retrieve()
-                    .bodyToMono(ChenilleOpenId.class)
-                    .block();
-
-            if (openId == null) {
-                throw new ChenilleChannelException("获取到的OpenId是空的！");
-            }
-            if (openId.getErrcode() == 0) {
-                return openId.getOpenid();
-            } else {
-                throw new ChenilleChannelException("获取到的OpenId失败！" + openId.getErrmsg());
-            }
-        }catch (Exception e){
-            log.error("获取微信端OpenId异常！",e);
-            throw new ChenilleChannelException("获取微信端OpenId异常！" + e.getMessage());
-        }
+    public Mono<String> requestOpenId(String jsCode) throws ChenilleChannelException {
+        return webClient.get()
+                // 拼接微信 OpenId 请求地址
+                .uri(uriBuilder -> uriBuilder
+                        .path(weChat.getUrl().getOpenId())
+                        .queryParam("appid", weChat.getAppId())
+                        .queryParam("secret", weChat.getAppSecret())
+                        .queryParam("js_code", jsCode)
+                        .queryParam("grant_type", "authorization_code")
+                        .build()
+                )
+                .retrieve()
+                // 将响应体反序列化为 ChenilleOpenId 对象
+                .bodyToMono(ChenilleOpenId.class)
+                .flatMap(openId -> {
+                    if (openId == null) {
+                        return Mono.error(new ChenilleChannelException("获取到的OpenId是空的！"));
+                    }
+                    if (openId.getErrcode() == 0) {
+                        return Mono.just(openId.getOpenid());
+                    } else {
+                        return Mono.error(new ChenilleChannelException("获取OpenId失败：" + openId.getErrmsg()));
+                    }
+                })
+                .onErrorResume(e -> {
+                    log.error("获取微信端OpenId异常！", e);
+                    return Mono.error(new ChenilleChannelException("获取微信端OpenId异常！" + e.getMessage()));
+                });
     }
 
     /**
@@ -71,7 +76,7 @@ public class ChenilleWeChatCommon {
      * @param code 微信客户端code
      * @return 手机号，空字符串表示获取失败
      */
-    public String requestPhone(String code){
+    public Mono<String> requestPhone(String code){
         return requestPhone(code, null);
     }
 
@@ -79,121 +84,163 @@ public class ChenilleWeChatCommon {
      * 获取微信端用户手机号
      * @param code 微信客户端code
      * @param openid 微信端用户openid
-     * @return 手机号，空字符串表示获取失败
+     * @return 手机号
      */
-    public String requestPhone(String code,String openid) throws ChenilleChannelException {
+    public Mono<String> requestPhone(String code,String openid) throws ChenilleChannelException {
         Map<String, String> requestBody = new HashMap<>();
         requestBody.put("code", code);
         if (openid != null) {
             requestBody.put("openid", openid);
         }
 
-        try{
-            ChenillePhoneNumber phoneNumber = webClient.post()
-                    .uri(weChat.getUrl().getPhoneNumber() + "?access_token="
-                            + weChat.getAppSecret())
-                    .contentType(MediaType.APPLICATION_JSON)
-                    .bodyValue(requestBody)
-                    .retrieve()
-                    .bodyToMono(ChenillePhoneNumber.class)
-                    .block();
-            if(phoneNumber == null || phoneNumber.getPhone_info().getPhoneNumber().isEmpty()){
-                throw new ChenilleChannelException("获取到的手机号是空的！");
-            }
-            return phoneNumber.getPhone_info().getPhoneNumber();
-        }catch (Exception e){
-            log.error("获取微信端用户手机号异常！",e);
-            throw new ChenilleChannelException("获取微信端用户手机号异常！" + e.getMessage());
-        }
+        return webClient.post()
+                // 构建 URI
+                .uri(uriBuilder -> uriBuilder
+                        .path(weChat.getUrl().getPhoneNumber())
+                        .queryParam("access_token", weChat.getAppSecret())
+                        .build()
+                )
+                // 设置 Content-Type
+                .contentType(MediaType.APPLICATION_JSON)
+                // 写入请求体
+                .bodyValue(requestBody)
+                // 取回响应体
+                .retrieve()
+                .bodyToMono(ChenillePhoneNumber.class)
+                // 业务逻辑处理
+                .flatMap(phoneNumber -> {
+                    if (phoneNumber == null
+                            || phoneNumber.getPhone_info() == null
+                            || phoneNumber.getPhone_info().getPhoneNumber() == null
+                            || phoneNumber.getPhone_info().getPhoneNumber().isEmpty()) {
+                        return Mono.error(new ChenilleChannelException("获取到的手机号是空的！"));
+                    }
+                    return Mono.just(phoneNumber.getPhone_info().getPhoneNumber());
+                })
+                // 异常处理
+                .onErrorResume(e -> {
+                    log.error("获取微信端用户手机号异常！", e);
+                    return Mono.error(new ChenilleChannelException("获取微信端用户手机号异常！" + e.getMessage()));
+                });
     }
 
     /**
      * 获取小程序码
      * @param scene 场景值
+     * @param envVersion 环境版本 develop
      */
-    public ChenilleWeChatQrCodeResult getQrCode(String scene){
-        try{
-            Map<String, String> requestBody = new HashMap<>();
-            requestBody.put("scene", scene);
-            requestBody.put("env_version", "develop");
-            return webClient.post()
-                    .uri(weChat.getUrl().getQrCode() + "?access_token=" + accessToken.getAccess_token())
-                    .contentType(MediaType.APPLICATION_JSON)
-                    .bodyValue(requestBody)
-                    .accept(MediaType.ALL)
-                    .exchangeToMono(response -> {
-                        MediaType contentType = response.headers()
-                                .contentType()
-                                .orElse(MediaType.APPLICATION_OCTET_STREAM);
-                        if(contentType.includes(MediaType.IMAGE_JPEG)){
-                            // 获取图片二进制数据
-                            return response.bodyToMono(byte[].class)
-                                    .map(imageData -> {
-                                        ChenilleWeChatQrCodeResult successResult = new ChenilleWeChatQrCodeResult();
-                                        successResult.setQrCodeImage(imageData);
-                                        return successResult;
-                                    });
-                        }else if (contentType.includes(MediaType.APPLICATION_JSON)) {
-                            // 获取错误信息
-                            return response.bodyToMono(String.class).map(err->{
-                                log.error("获取小程序二维码错误！{}",err);
-                                ChenilleWeChatQrCodeResult errorResult = new ChenilleWeChatQrCodeResult();
-                                errorResult.setErrorMsg(err);
-                                return errorResult;
-                            });
-                        }else {
-                            log.error("获取小程序二维码出现未知错误！{}",contentType);
-                            ChenilleWeChatQrCodeResult unknownResult = new ChenilleWeChatQrCodeResult();
-                            unknownResult.setErrorMsg("未知响应类型: " + contentType);
-                            return Mono.just(unknownResult);
-                        }
-                    })
-                    .block();
-        } catch (Exception e) {
-            log.error("获取小程序二维码出现网络错误！", e);
-            ChenilleWeChatQrCodeResult netErrorResult = new ChenilleWeChatQrCodeResult();
-            netErrorResult.setErrorMsg("网络错误");
-            return netErrorResult;
-        }
+    public Mono<ChenilleWeChatQrCodeResult> getQrCode(@NonNull String scene,
+                                                      @NonNull String envVersion){
+        Map<String, String> requestBody = new HashMap<>();
+        requestBody.put("scene", scene);
+        requestBody.put("env_version", envVersion);
+
+        return webClient.post()
+                // 构建请求 URI
+                .uri(uriBuilder -> uriBuilder
+                        .path(weChat.getUrl().getQrCode())
+                        .queryParam("access_token", accessToken.getAccess_token())
+                        .build())
+                // 设置请求头
+                .contentType(MediaType.APPLICATION_JSON)
+                .accept(MediaType.ALL)
+                .bodyValue(requestBody)
+                // 处理响应
+                .exchangeToMono(response -> {
+                    // 获取响应类型
+                    MediaType contentType = response.headers()
+                            .contentType()
+                            .orElse(MediaType.APPLICATION_OCTET_STREAM);
+
+                    // 1️⃣ 图片类型（成功）
+                    if (contentType.includes(MediaType.IMAGE_JPEG)) {
+                        return response.bodyToMono(byte[].class)
+                                .map(imageData -> {
+                                    ChenilleWeChatQrCodeResult result = new ChenilleWeChatQrCodeResult();
+                                    result.setQrCodeImage(imageData);
+                                    return result;
+                                });
+                    }
+
+                    // 2️⃣ JSON 错误响应
+                    else if (contentType.includes(MediaType.APPLICATION_JSON)) {
+                        return response.bodyToMono(String.class)
+                                .map(err -> {
+                                    log.error("获取小程序二维码错误！{}", err);
+                                    ChenilleWeChatQrCodeResult result = new ChenilleWeChatQrCodeResult();
+                                    result.setErrorMsg(err);
+                                    return result;
+                                });
+                    }
+
+                    // 3️⃣ 未知类型响应
+                    else {
+                        log.error("获取小程序二维码出现未知响应类型：{}", contentType);
+                        ChenilleWeChatQrCodeResult result = new ChenilleWeChatQrCodeResult();
+                        result.setErrorMsg("未知响应类型: " + contentType);
+                        return Mono.just(result);
+                    }
+                })
+                // 捕获异常，转为统一的错误结果
+                .onErrorResume(e -> {
+                    log.error("获取小程序二维码出现网络错误！", e);
+                    ChenilleWeChatQrCodeResult result = new ChenilleWeChatQrCodeResult();
+                    result.setErrorMsg("网络错误：" + e.getMessage());
+                    return Mono.just(result);
+                });
     }
 
     /**
      * 获取微信端AccessToken
      * 项目启动后轮训获取，在过期之前
      */
-    public void requestAccessToken() {
+    public Mono<Void> requestAccessToken() {
         if(accessTokenFailCount > 5){
             log.error("获取AccessToken失败次数过多！向管理员报警！");
             throw new ChenilleChannelException("高危报警\n获取AccessToken失败次数过多！\n严重影响正常业务！");
         }
-        try{
-            ChenilleAccessToken accessToken = webClient.post()
-                    .uri(weChat.getUrl().getAccessToken())
-                    .contentType(MediaType.APPLICATION_FORM_URLENCODED)
-                    .body(BodyInserters.fromFormData("appid", weChat.getAppId())
-                            .with("secret", weChat.getAppSecret())
-                            .with("grant_type", "client_credential"))
-                    .retrieve()
-                    .bodyToMono(ChenilleAccessToken.class)
-                    .block();
-            if(accessToken != null){
-                accessTokenFailCount = 0;
-                setAccessToken(accessToken);
-                // expires_in的单位是秒，且 >= 300 , <= 7200
-                new ChenilleDelayedTaskExecutor().executeAfterDelay(
-                        accessToken.getExpires_in() - 300,
-                        this::requestAccessToken);
-            }else {
-                accessTokenFailCount++;
-                log.error("获取AccessToken结果发现为空对象！准备重试！");
-                this.requestAccessToken();
+        return webClient.post()
+                // 构建请求
+                .uri(weChat.getUrl().getAccessToken())
+                .contentType(MediaType.APPLICATION_FORM_URLENCODED)
+                .body(BodyInserters.fromFormData("appid", weChat.getAppId())
+                        .with("secret", weChat.getAppSecret())
+                        .with("grant_type", "client_credential"))
+                .retrieve()
+                .bodyToMono(ChenilleAccessToken.class)
+                // 核心业务逻辑
+                .flatMap(token -> {
+                    if (token == null) {
+                        accessTokenFailCount++;
+                        log.error("获取 AccessToken 结果为空，准备重试...");
+                        return scheduleRetry();
+                    }
 
-            }
-        }catch (Exception e){
-            accessTokenFailCount++;
-            log.error("获取AccessToken失败！准备重试！", e);
-            this.requestAccessToken();
-        }
+                    // 成功：重置失败次数，保存 AccessToken
+                    accessTokenFailCount = 0;
+                    setAccessToken(token);
+
+                    // 计算延迟时间（提前5分钟刷新）
+                    long delaySeconds = Math.max(token.getExpires_in() - 300, 300);
+                    return Mono.delay(Duration.ofSeconds(delaySeconds))
+                            .flatMap(tick -> requestAccessToken())
+                            .then();
+                })
+                // 捕获异常并进行重试
+                .onErrorResume(e -> {
+                    accessTokenFailCount++;
+                    log.error("获取 AccessToken 失败，准备重试", e);
+                    return scheduleRetry();
+                });
+    }
+
+    /**
+     * 失败后延迟重试
+     */
+    private Mono<Void> scheduleRetry() {
+        return Mono.delay(Duration.ofSeconds(10))
+                .flatMap(tick -> requestAccessToken())
+                .then();
     }
 
     /**

@@ -16,22 +16,12 @@ import java.util.concurrent.TimeUnit;
 @Slf4j
 public record ChenilleLoginUtils(ChenilleLogin chenilleLogin,
                                  ChenilleCacheUtils chenilleCacheUtils,
-                                 ChenilleJwtUtils chenilleJwtUtils) {
+                                 ChenilleJwtUtils chenilleJwtUtils,
+                                 ChenilleObjectUtils chenilleObjectUtils) {
 
-    public ChenilleLoginUtils(ChenilleLogin chenilleLogin,
-                              ChenilleCacheUtils chenilleCacheUtils,
-                              ChenilleJwtUtils chenilleJwtUtils) {
-        this.chenilleLogin = chenilleLogin;
-        if (chenilleCacheUtils == null) {
-            log.error("要使用 ChenilleLoginUtils ，请先配置 chenille.config.cache.redis 启用");
-            throw new ChenilleChannelException("要使用 ChenilleLoginUtils ，请先配置 chenille.config.cache.redis 启用");
-        }
-        if (chenilleJwtUtils == null) {
-            log.error("要使用 ChenilleLoginUtils ，请先配置 chenille.config.jwt 启用");
-            throw new ChenilleChannelException("要使用 ChenilleLoginUtils ，请先配置 chenille.config.jwt 启用");
-        }
-        this.chenilleJwtUtils = chenilleJwtUtils;
-        this.chenilleCacheUtils = chenilleCacheUtils;
+    public ChenilleLoginUtils {
+        chenilleObjectUtils.requireNonNull(chenilleCacheUtils, "chenille.config.cache.redis 未启用");
+        chenilleObjectUtils.requireNonNull(chenilleJwtUtils, "chenille.config.jwt 未启用");
     }
 
     /**
@@ -41,21 +31,28 @@ public record ChenilleLoginUtils(ChenilleLogin chenilleLogin,
      * @return 登录凭证
      */
     @NonNull
-    public String login(@NonNull String userId) {
-        String token = chenilleJwtUtils.createToken(userId);
-        // 之前已登录的，先退出登录
-        logout(userId);
-        // 缓存登录凭证
-        chenilleCacheUtils.putRedis(ChenilleInternalEnum.UserCacheKey.USER_KEY_INFO.getValue().formatted(userId),
-                token,
-                chenilleLogin.getExpire(),
-                TimeUnit.SECONDS);
-        // 缓存用户ID
-        chenilleCacheUtils.putRedis(ChenilleInternalEnum.UserCacheKey.USER_KEY_TOKEN.getValue().formatted(token),
-                userId,
-                chenilleLogin.getExpire(),
-                TimeUnit.SECONDS);
-        return token;
+    public Mono<String> login(@NonNull String userId) {
+        String userKey = ChenilleInternalEnum.UserCacheKey.USER_KEY_INFO.getValue().formatted(userId);
+        long expire = chenilleLogin.getExpire();
+
+        return chenilleCacheUtils.getRedisString(userKey)
+                .flatMap(existingToken -> {
+                    // 用户已登录，延长过期时间
+                    String tokenKey = ChenilleInternalEnum.UserCacheKey.USER_KEY_TOKEN.getValue().formatted(existingToken);
+                    return Mono.when(
+                            chenilleCacheUtils.expireRedisKey(userKey, expire, TimeUnit.SECONDS),
+                            chenilleCacheUtils.expireRedisKey(tokenKey, expire, TimeUnit.SECONDS)
+                    ).thenReturn(existingToken);
+                })
+                .switchIfEmpty(Mono.defer(() -> {
+                    // 用户未登录，生成新 token
+                    String newToken = chenilleJwtUtils.createToken(userId);
+                    String tokenKey = ChenilleInternalEnum.UserCacheKey.USER_KEY_TOKEN.getValue().formatted(newToken);
+                    return Mono.when(
+                            chenilleCacheUtils.putRedis(userKey, newToken, expire, TimeUnit.SECONDS),
+                            chenilleCacheUtils.putRedis(tokenKey, userId, expire, TimeUnit.SECONDS)
+                    ).thenReturn(newToken);
+                }));
     }
 
     /**
@@ -66,15 +63,16 @@ public record ChenilleLoginUtils(ChenilleLogin chenilleLogin,
      */
     public Mono<String> refresh(@NonNull String token) {
         return getUserId(token)
-                .flatMap(userId -> {
-                    if (!isLoggedIn(userId)) {
-                        return Mono.error(new ChenilleChannelException(
-                                ChenilleResponseCode.UNAUTHORIZED,
-                                "凭证已失效，请重新登录"));
-                    }
-                    String newToken = login(userId);
-                    return Mono.just(newToken);
-                });
+                .flatMap(userId -> isLoggedIn(userId)
+                        .flatMap(loggedIn -> {
+                            if (!loggedIn) {
+                                return Mono.error(new ChenilleChannelException(
+                                        ChenilleResponseCode.UNAUTHORIZED,
+                                        "凭证已失效，请重新登录"));
+                            }
+                            return login(userId);
+                        })
+                );
     }
 
     /**
@@ -83,8 +81,9 @@ public record ChenilleLoginUtils(ChenilleLogin chenilleLogin,
      * @param userId 用户唯一标识
      * @return true 如果用户已登录，否则 false
      */
-    public boolean isLoggedIn(@NonNull String userId) {
-        return chenilleCacheUtils.containsRedisKey(ChenilleInternalEnum.UserCacheKey.USER_KEY_INFO.getValue().formatted(userId));
+    public Mono<Boolean> isLoggedIn(@NonNull String userId) {
+        String userKey = ChenilleInternalEnum.UserCacheKey.USER_KEY_INFO.getValue().formatted(userId);
+        return chenilleCacheUtils.containsRedisKey(userKey);
     }
 
     /**
@@ -92,14 +91,16 @@ public record ChenilleLoginUtils(ChenilleLogin chenilleLogin,
      *
      * @param userId 用户唯一标识
      */
-    public void logout(@NonNull String userId) {
-        if (isLoggedIn(userId)) {
-            chenilleCacheUtils.getRedisString(ChenilleInternalEnum.UserCacheKey.USER_KEY_INFO.getValue().formatted(userId))
-                    .ifPresent(token -> {
-                        chenilleCacheUtils.deleteRedisKey(ChenilleInternalEnum.UserCacheKey.USER_KEY_INFO.getValue().formatted(userId));
-                        chenilleCacheUtils.deleteRedisKey(ChenilleInternalEnum.UserCacheKey.USER_KEY_TOKEN.getValue().formatted(token));
-                    });
-        }
+    public Mono<Void> logout(@NonNull String userId) {
+        String userKey = ChenilleInternalEnum.UserCacheKey.USER_KEY_INFO.getValue().formatted(userId);
+        return chenilleCacheUtils.getRedisString(userKey)
+                .flatMap(token -> {
+                    String tokenKey = ChenilleInternalEnum.UserCacheKey.USER_KEY_TOKEN.getValue().formatted(token);
+                    return Mono.when(
+                            chenilleCacheUtils.deleteRedisKey(userKey),
+                            chenilleCacheUtils.deleteRedisKey(tokenKey)
+                    ).then();
+                }).then(); // 如果没登录也直接完成
     }
 
     /**
@@ -109,13 +110,11 @@ public record ChenilleLoginUtils(ChenilleLogin chenilleLogin,
      * @return 用户唯一标识
      */
     public Mono<String> getUserId(@NonNull String token) {
-        return Mono.justOrEmpty(
-                chenilleCacheUtils.getRedisString(
-                        ChenilleInternalEnum.UserCacheKey.USER_KEY_TOKEN.getValue().formatted(token)
-                )
-        ).switchIfEmpty(Mono.error(new ChenilleChannelException(
-                ChenilleResponseCode.UNAUTHORIZED,
-                "登录凭证不存在")));
+        String tokenKey = ChenilleInternalEnum.UserCacheKey.USER_KEY_TOKEN.getValue().formatted(token);
+        return chenilleCacheUtils.getRedisString(tokenKey)
+                .switchIfEmpty(Mono.error(new ChenilleChannelException(
+                        ChenilleResponseCode.UNAUTHORIZED,
+                        "登录凭证不存在")));
     }
 
 }
