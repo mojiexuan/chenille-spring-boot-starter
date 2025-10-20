@@ -1,6 +1,8 @@
 package com.chenjiabao.open.chenille.dto;
 
+import lombok.AllArgsConstructor;
 import lombok.Getter;
+import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 import java.util.HashMap;
@@ -12,7 +14,10 @@ import java.util.Map;
  */
 @Setter
 @Getter
+@AllArgsConstructor
+@NoArgsConstructor
 public class ChenilleAuthStatus {
+
     /**
      * 是否认证成功
      */

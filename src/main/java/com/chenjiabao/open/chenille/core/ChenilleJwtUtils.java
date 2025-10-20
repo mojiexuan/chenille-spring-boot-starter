@@ -6,6 +6,7 @@ import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import reactor.core.publisher.Mono;
 
 import javax.crypto.SecretKey;
 import javax.crypto.spec.SecretKeySpec;
@@ -16,6 +17,7 @@ import java.util.Date;
 
 /**
  * jwt工具（支持东8区时间）
+ *
  * @author ChenJiaBao
  */
 @Slf4j
@@ -35,19 +37,20 @@ public class ChenilleJwtUtils {
             throw new ChenilleChannelException("启用JWT功能需要同时启用 chenille.config.jackson.json.enabled=true");
         }
         this.chenilleJsonUtils = chenilleJsonUtils;
-        if(chenilleStringUtils.isEmpty(chenilleJwt.getSecret())){
+        if (chenilleStringUtils.isEmpty(chenilleJwt.getSecret())) {
             secretKey = Jwts.SIG.HS256.key().build();
-        }else {
+        } else {
             this.setJwtSecret(chenilleJwt.getSecret());
         }
     }
 
     /**
      * 设置秘钥（只能设置一次）
+     *
      * @param jwtSecret 新的秘钥（建议使用Base64编码的32位以上字符串）
      */
     public synchronized void setJwtSecret(String jwtSecret) {
-        if(secretKey == null){
+        if (secretKey == null) {
             try {
                 // 解码Base64字符串
                 byte[] decodedKey = Base64.getDecoder().decode(jwtSecret);
@@ -56,83 +59,81 @@ public class ChenilleJwtUtils {
                 if (decodedKey.length < 32) {
                     throw new IllegalArgumentException("JWT 密钥的长度不足，必须至少为32字节（256位）。");
                 }
-                secretKey = new SecretKeySpec(decodedKey,"HmacSHA256");
+                secretKey = new SecretKeySpec(decodedKey, "HmacSHA256");
             } catch (Exception e) {
-                log.error("配置的 JWT 密钥应该确保是有效的 Base64 编码字符串",e);
+                log.error("配置的 JWT 密钥应该确保是有效的 Base64 编码字符串", e);
             }
         }
     }
 
     /**
      * 生成Token（东8区时间）
+     *
      * @param subject 荷载
      * @return 生成的JWT Token
      */
-    public String createToken(Object subject) {
-        try {
-            String subjectJson = chenilleJsonUtils.toJson(subject);
+    public Mono<String> generateToken(Object subject) {
+        return Mono.fromCallable(() -> chenilleJsonUtils.toJson(subject)) // 将对象转 JSON
+                .map(subjectJson -> {
+                    ZonedDateTime now = ZonedDateTime.now(ZoneId.of("GMT+8"));
+                    Date issuedAt = Date.from(now.toInstant());
+                    Date expiration = Date.from(now.plusSeconds(chenilleJwt.getExpires()).toInstant());
 
-            // 计算东8区时间
-            ZonedDateTime now = ZonedDateTime.now(ZoneId.of("GMT+8"));
-            Date issuedAt = Date.from(now.toInstant());
-            Date expiration = Date.from(now.plusSeconds(chenilleJwt.getExpires()).toInstant());
-
-            // 生成 Token
-            return Jwts.builder()
-                    .subject(subjectJson)
-                    .issuedAt(issuedAt)
-                    .expiration(expiration)
-                    .signWith(this.secretKey, Jwts.SIG.HS256)
-                    .compact();
-        } catch (Exception e) {
-            log.error("subject转JSON字符串失败 -> ", e);
-            throw new RuntimeException("创建Token失败 -> ", e);
-        }
+                    return Jwts.builder()
+                            .subject(subjectJson)
+                            .issuedAt(issuedAt)
+                            .expiration(expiration)
+                            .signWith(this.secretKey, Jwts.SIG.HS256)
+                            .compact();
+                })
+                .onErrorResume(e ->
+                        Mono.error(new ChenilleChannelException("创建Token失败")));
     }
 
     /**
      * 解析Token
+     *
      * @param token JWT Token
      * @return 声明内容
      */
-    public Claims parseToken(String token) {
-        return Jwts.parser()
-                .verifyWith(this.secretKey)
-                .build()
-                .parseSignedClaims(token)
-                .getPayload();
+    public Mono<Claims> parseClaims(String token) {
+        return Mono.fromCallable(() -> Jwts.parser()
+                        .verifyWith(this.secretKey)
+                        .build()
+                        .parseSignedClaims(token)
+                        .getPayload())
+                .onErrorResume(e ->
+                        Mono.error(new ChenilleChannelException("解析Token失败")));
     }
 
     /**
      * 获取Token声明中的用户唯一标识
+     *
      * @param token JWT Token
      * @return 用户唯一标识
      */
-    public <T> T getSubject(String token, Class<T> clazz) {
-        try {
-            // 解析 token 并获取 subject 字段
-            String subjectJson = parseToken(token).getSubject();
-
-            // 将 JSON 字符串反序列化为对象
-            return chenilleJsonUtils.fromJson(subjectJson, clazz);
-        } catch (Exception e) {
-            log.error("从Token中获取subject失败 -> ", e);
-            throw new RuntimeException("从Token中获取subject失败 -> ", e);
-        }
+    public <T> Mono<T> extractSubject(String token, Class<T> clazz) {
+        return parseClaims(token)
+                .flatMap(claims -> {
+                    try {
+                        T obj = chenilleJsonUtils.fromJson(claims.getSubject(), clazz);
+                        return Mono.just(obj);
+                    } catch (Exception e) {
+                        return Mono.error(new ChenilleChannelException("从Token中获取subject失败"));
+                    }
+                });
     }
 
     /**
      * 验证Token有效性
+     *
      * @param token JWT Token
      * @return 是否有效
      */
-    public boolean validateToken(String token) {
-        try {
-            Claims claims = parseToken(token);
-            return claims.getExpiration().after(new Date());
-        } catch (Exception e) {
-            return false;
-        }
+    public Mono<Boolean> isTokenValid(String token) {
+        return parseClaims(token)
+                .map(claims -> claims.getExpiration().after(new Date()))
+                .onErrorReturn(false);
     }
 
 }

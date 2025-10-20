@@ -129,11 +129,11 @@ public class ChenilleAutoConfigWeb{
     @ConditionalOnMissingBean // 仅当不存在该类型的bean时，才会创建该bean
     @ConditionalOnProperty(prefix = "chenille.config.hash", name = "enabled", havingValue = "true")
     public ChenilleHashUtils chenilleHashUtils(ChenilleProperties properties) {
-        ChenilleHashUtils chenilleHashUtils = new ChenilleHashUtils();
         if (properties.getHash().getPepper() != null) {
-            chenilleHashUtils.setHashPepper(properties.getHash().getPepper());
+            return new ChenilleHashUtils(properties.getHash().getPepper());
+        }else {
+            throw new IllegalArgumentException("chenille.config.hash.pepper不能为空或空白");
         }
-        return chenilleHashUtils;
     }
 
     @Bean

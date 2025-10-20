@@ -5,65 +5,82 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
 import java.util.Base64;
+import java.util.concurrent.atomic.AtomicReference;
 
 /**
- * sha
+ * ChenilleHash
+ * <p>
+ * 提供安全的 SHA-256 哈希工具，支持盐（Salt）与胡椒（Pepper）。
+ * <br>
+ * 胡椒应由应用在启动时显式初始化。
+ * </p>
+ *
  * @author ChenJiaBao
  */
 public class ChenilleHashUtils {
 
-    // sha版本
-    private static final String HASH_ALGORITHM = "SHA-256";
-    // 默认胡椒，生产环境通过启动变量引入
-    private static String HASH_PEPPER = "8wFhA5VR9DbeOnmpcHq+1wFP8nL0fgFqYSsNV7FjLsI=";
+    private final AtomicReference<String> PEPPER = new AtomicReference<>();
 
     /**
-     * 设置胡椒，仅可更新一次
-     * @param hashPepper 胡椒值
+     * 构造函数，初始化系统级胡椒值。
+     * <p>仅可调用一次，重复调用将被忽略。</p>
+     *
+     * @param pepper 高熵随机字符串（例如从环境变量加载）
      */
-    public void setHashPepper(String hashPepper) {
-        if("8wFhA5VR9DbeOnmpcHq+1wFP8nL0fgFqYSsNV7FjLsI=".equals(HASH_PEPPER)){
-            HASH_PEPPER = hashPepper;
+    public ChenilleHashUtils(String pepper){
+        if (pepper == null || pepper.isBlank()) {
+            throw new IllegalArgumentException("Pepper不能为null或空白");
         }
+        PEPPER.compareAndSet(null, pepper);
     }
 
     /**
-     * 获取随机盐值base64
+     * 生成随机盐值（Base64 编码）。
+     *
+     * @return 盐值字符串
      */
-    public String getRandomSalt(){
-        // 创建一个 SecureRandom 实例
-        SecureRandom secureRandom = new SecureRandom();
-        // 生成 16 字节的盐值
+    public String generateSalt() {
         byte[] salt = new byte[16];
-        secureRandom.nextBytes(salt);
-        // 将盐值转换为 Base64 编码的字符串形式
+        new SecureRandom().nextBytes(salt);
         return Base64.getEncoder().encodeToString(salt);
     }
 
     /**
-     * 字符串转hash值
-     * @param str 需要转换的字符串
-     * @return hash摘要转base64
+     * 对字符串进行 SHA-256 哈希（Base64 编码）。
+     *
+     * @param input 输入字符串
+     * @return 哈希字符串
      */
-    public String stringToHash256(String str) {
-        try {
-            MessageDigest digest = MessageDigest.getInstance(HASH_ALGORITHM);
-            byte[] hashBytes = digest.digest(str.getBytes(StandardCharsets.UTF_8));
-            // 将哈希值转换为 Base64 编码的字符串
-            return Base64.getEncoder().encodeToString(hashBytes);
-        } catch (NoSuchAlgorithmException e) {
-            return null;
-        }
+    public String hash(String input) {
+        return doHash(input);
     }
 
     /**
-     * 字符串转hash摘要，加上胡椒和盐值
-     * @param str 需要加密的字符串
-     * @param salt 盐值
-     * @return hash摘要转base64
+     * 对字符串进行 SHA-256 哈希，并加入盐值与胡椒（Base64 编码）。
+     *
+     * @param input 输入字符串
+     * @param salt  盐值
+     * @return 哈希字符串
      */
-    public String stringToHash256WithSaltAndPepper(String str,String salt){
-        return stringToHash256(str + salt + HASH_PEPPER);
+    public String hashWithSaltAndPepper(String input, String salt) {
+        String pepper = PEPPER.get();
+        if (pepper == null) {
+            throw new IllegalStateException("Pepper尚未初始化。首先调用initializePepper()。");
+        }
+        return doHash(input + salt + pepper);
+    }
+
+    /**
+     * 内部通用哈希逻辑。
+     */
+    private String doHash(String content) {
+        try {
+            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            byte[] hashBytes = digest.digest(content.getBytes(StandardCharsets.UTF_8));
+            return Base64.getEncoder().encodeToString(hashBytes);
+        } catch (NoSuchAlgorithmException e) {
+            throw new IllegalStateException("SHA-256算法不可用", e);
+        }
     }
 
 }

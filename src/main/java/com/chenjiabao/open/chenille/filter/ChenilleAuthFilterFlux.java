@@ -3,13 +3,13 @@ package com.chenjiabao.open.chenille.filter;
 import com.chenjiabao.open.chenille.config.ChenilleAuthProvider;
 import com.chenjiabao.open.chenille.core.ChenilleCheckUtils;
 import com.chenjiabao.open.chenille.core.ChenilleJwtUtils;
-import com.chenjiabao.open.chenille.dto.ChenilleAuthStatus;
 import com.chenjiabao.open.chenille.enums.ChenilleResponseCode;
 import com.chenjiabao.open.chenille.exception.ChenilleChannelException;
 import com.chenjiabao.open.chenille.model.ChenilleAuthFilterInfo;
 import com.chenjiabao.open.chenille.model.property.ChenilleAuth;
 import lombok.NonNull;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.Ordered;
 import org.springframework.http.HttpHeaders;
 import org.springframework.util.AntPathMatcher;
@@ -17,6 +17,7 @@ import org.springframework.web.server.ServerWebExchange;
 import org.springframework.web.server.WebFilter;
 import org.springframework.web.server.WebFilterChain;
 import reactor.core.publisher.Mono;
+
 import java.util.Locale;
 
 /**
@@ -33,7 +34,7 @@ public class ChenilleAuthFilterFlux implements WebFilter, Ordered {
 
     public ChenilleAuthFilterFlux(
             ChenilleAuth auth,
-            ChenilleAuthProvider chenilleAuthProvider,
+            @Autowired(required = false) ChenilleAuthProvider chenilleAuthProvider,
             ChenilleCheckUtils chenilleCheckUtils,
             ChenilleJwtUtils chenilleJwtUtils) {
         this.auth = auth;
@@ -53,40 +54,59 @@ public class ChenilleAuthFilterFlux implements WebFilter, Ordered {
             return chain.filter(exchange);
         }
 
-        // 如果路径需要身份验证
-        if (shouldAuthenticate(path)) {
-            // 获取令牌
-            String jwtToken = extractJwtToken(exchange);
-            if (jwtToken != null && chenilleJwtUtils.validateToken(jwtToken)) {
-                // 提取负载
-                String subject = chenilleJwtUtils.parseToken(jwtToken).getSubject();
-                if(chenilleAuthProvider == null){
-                    return chain.filter(exchange);
-                }
-                // 认证
-                ChenilleAuthStatus chenilleAuthStatus = chenilleAuthProvider.auth(new ChenilleAuthFilterInfo(
-                        path,
-                        jwtToken,
-                        subject
-                ));
-                if(chenilleAuthStatus.isAuth()){
-                    chenilleAuthStatus.getAttributes().forEach((k,v)->
-                            exchange.getAttributes().put(k,v));
-                    return chain.filter(exchange);
-                }else {
-                    return unauthorized();
-                }
-            }else {
-                return unauthorized();
-            }
-        }else {
+        // 判断是否需要鉴权
+        if (!shouldAuthenticate(path)) {
             return chain.filter(exchange);
         }
+
+        // 提取JWT
+        String jwtToken = extractJwtToken(exchange);
+        if (jwtToken == null) {
+            return unauthorized();
+        }
+
+        return chenilleJwtUtils
+                .isTokenValid(jwtToken)
+                .flatMap(valid -> {
+                    if (!valid) {
+                        return unauthorized();
+                    }
+                    // 解析负载
+                    return chenilleJwtUtils.parseClaims(jwtToken)
+                            .flatMap(claims -> {
+                                String subject = claims.getSubject();
+                                if (chenilleAuthProvider == null) {
+                                    return chain.filter(exchange);
+                                }
+
+                                // 调用外部认证逻辑（响应式）
+                                return chenilleAuthProvider.auth(new ChenilleAuthFilterInfo(
+                                                path,
+                                                jwtToken,
+                                                subject
+                                        ))
+                                        .flatMap(authStatus -> {
+                                            if (authStatus.isAuth()) {
+                                                // 将认证属性注入请求上下文
+                                                authStatus.getAttributes().forEach((k, v) ->
+                                                        exchange.getAttributes().put(k, v));
+                                                return chain.filter(exchange);
+                                            } else {
+                                                return unauthorized();
+                                            }
+                                        });
+                            });
+                })
+                .onErrorResume(e -> {
+                    log.error("鉴权过程发生异常: {}", e.getMessage(), e);
+                    return unauthorized();
+                });
 
     }
 
     /**
      * 判断路径是否需要身份验证
+     *
      * @param path 请求路径
      * @return 是否需要身份验证
      */
@@ -107,6 +127,7 @@ public class ChenilleAuthFilterFlux implements WebFilter, Ordered {
 
     /**
      * 从请求中提取JWT令牌
+     *
      * @param exchange HTTP请求
      * @return JWT令牌，如果不存在或格式不正确则返回null
      */
@@ -122,7 +143,7 @@ public class ChenilleAuthFilterFlux implements WebFilter, Ordered {
     /**
      * 发送未授权响应
      */
-    private Mono<Void> unauthorized(){
+    private Mono<Void> unauthorized() {
         return Mono.error(new ChenilleChannelException(ChenilleResponseCode.FORBIDDEN, "权限不足，禁止访问"));
     }
 
