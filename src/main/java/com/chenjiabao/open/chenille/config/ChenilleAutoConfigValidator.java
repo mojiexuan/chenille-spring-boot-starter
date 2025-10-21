@@ -3,6 +3,7 @@ package com.chenjiabao.open.chenille.config;
 import com.chenjiabao.open.chenille.core.ChenilleCheckUtils;
 import com.chenjiabao.open.chenille.model.property.ChenilleProperties;
 import com.chenjiabao.open.chenille.validator.ChenilleChinaPhoneValidator;
+import com.chenjiabao.open.chenille.validator.ChenilleNumericStringValidator;
 import org.springframework.boot.autoconfigure.AutoConfigureAfter;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
@@ -22,6 +23,12 @@ public class ChenilleAutoConfigValidator {
     @ConditionalOnMissingBean
     public ChenilleChinaPhoneValidator chenilleChinaPhoneValidator(ChenilleCheckUtils chenilleCheckUtils) {
         return new ChenilleChinaPhoneValidator(chenilleCheckUtils);
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
+    public ChenilleNumericStringValidator chenilleNumericStringValidator(ChenilleCheckUtils chenilleCheckUtils) {
+        return new ChenilleNumericStringValidator(chenilleCheckUtils);
     }
 
 }
