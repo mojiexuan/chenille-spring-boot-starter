@@ -164,6 +164,13 @@
             <optional>true</optional>
         </dependency>
 
+        <!-- Spring Data R2DBC（响应式数据库访问层） -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-data-r2dbc</artifactId>
+            <optional>true</optional>
+        </dependency>
+
         <!--        lombok-->
         <dependency>
             <groupId>org.projectlombok</groupId>

@@ -19,5 +19,5 @@ public class ChenilleMail {
     private String password;
     private String protocol = "smtp";
     @NestedConfigurationProperty
-    private ChenilleMailTemplate template;
+    private ChenilleMailTemplate template = new ChenilleMailTemplate();
 }

@@ -105,4 +105,10 @@ public class ChenilleProperties {
      */
     @NestedConfigurationProperty
     private ChenilleJackson jackson = new ChenilleJackson();
+
+    /**
+     * 事务配置
+     */
+    @NestedConfigurationProperty
+    private ChenilleTransaction transaction = new ChenilleTransaction();
 }
