@@ -98,9 +98,17 @@ public class ChenilleAutoConfigWebFlux implements WebFluxConfigurer {
     @ConditionalOnMissingBean
     @ConditionalOnProperty(prefix = "chenille.config.auth.login", name = "enabled", havingValue = "true")
     public ChenilleLoginUtils getChenilleLoginUtils(ChenilleProperties properties,
-                                                    ChenilleCacheUtils chenilleCacheUtils,
-                                                    ChenilleJwtUtils chenilleJwtUtils,
+                                                     @Autowired(required = false) ChenilleCacheUtils chenilleCacheUtils,
+                                                    @Autowired(required = false) ChenilleJwtUtils chenilleJwtUtils,
                                                     ChenilleObjectUtils chenilleObjectUtils) {
+        if (chenilleCacheUtils == null) {
+            log.error("注入 ChenilleLoginUtils Bean 失败 -> 启用 chenille.config.auth.login 时，需要同时启用 chenille.config.cache");
+            throw new ChenilleChannelException("注入 ChenilleCacheUtils Bean 失败 -> 启用 chenille.config.auth.login 时，需要同时启用 chenille.config.cache");
+        }
+        if (chenilleJwtUtils == null) {
+            log.error("注入 ChenilleLoginUtils Bean 失败 -> 启用 chenille.config.auth.login 时，需要同时启用 chenille.config.jwt");
+            throw new ChenilleChannelException("注入 ChenilleJwtUtils Bean 失败 -> 启用 chenille.config.auth.login 时，需要同时启用 chenille.config.jwt");
+        }
         return new ChenilleLoginUtils(
                 properties.getAuth().getLogin(),
                 chenilleCacheUtils,

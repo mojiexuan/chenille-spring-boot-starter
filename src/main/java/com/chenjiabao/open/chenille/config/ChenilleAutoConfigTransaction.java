@@ -3,7 +3,6 @@ package com.chenjiabao.open.chenille.config;
 import com.chenjiabao.open.chenille.model.property.ChenilleProperties;
 import com.chenjiabao.open.chenille.model.property.ChenilleTransaction;
 import io.r2dbc.spi.ConnectionFactory;
-import jakarta.annotation.PostConstruct;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.AutoConfigureAfter;
@@ -11,7 +10,6 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
-import org.springframework.context.ApplicationContext;
 import org.springframework.context.annotation.Bean;
 import org.springframework.r2dbc.connection.R2dbcTransactionManager;
 import org.springframework.transaction.ReactiveTransactionManager;
@@ -88,13 +86,6 @@ public class ChenilleAutoConfigTransaction {
                 tx.getDefaultTimeout().getSeconds(), tx.getReadOnly());
 
         return operator;
-    }
-
-    @PostConstruct
-    public void checkDataSourcePresence(ApplicationContext ctx) {
-        if (!ctx.containsBean("connectionFactory")) {
-            log.info("[Chenille] ℹ 未检测到 ConnectionFactory，跳过事务自动配置。");
-        }
     }
 
 }
