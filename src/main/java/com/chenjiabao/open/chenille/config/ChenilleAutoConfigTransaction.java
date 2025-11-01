@@ -17,6 +17,8 @@ import org.springframework.transaction.annotation.EnableTransactionManagement;
 import org.springframework.transaction.reactive.TransactionalOperator;
 import org.springframework.transaction.support.DefaultTransactionDefinition;
 
+import java.time.Duration;
+
 /**
  * 响应式事务自动配置
  *
@@ -75,15 +77,17 @@ public class ChenilleAutoConfigTransaction {
             tx = new ChenilleTransaction();
         }
 
+        Duration timeout = tx.getDefaultTimeout() != null ? tx.getDefaultTimeout() : Duration.ofSeconds(30);
+
         DefaultTransactionDefinition def = new DefaultTransactionDefinition();
         def.setReadOnly(Boolean.TRUE.equals(tx.getReadOnly()));
-        def.setTimeout((int) tx.getDefaultTimeout().getSeconds());
+        def.setTimeout((int) timeout.getSeconds());
         def.setPropagationBehavior(DefaultTransactionDefinition.PROPAGATION_REQUIRED);
 
         TransactionalOperator operator = TransactionalOperator.create(manager, def);
 
         log.info("[Chenille] ▶ 事务操作器就绪 (timeout={}s, readOnly={})",
-                tx.getDefaultTimeout().getSeconds(), tx.getReadOnly());
+                timeout.getSeconds(), tx.getReadOnly());
 
         return operator;
     }

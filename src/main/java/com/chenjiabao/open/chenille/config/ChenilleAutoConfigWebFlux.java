@@ -49,7 +49,11 @@ public class ChenilleAutoConfigWebFlux implements WebFluxConfigurer {
         configurer.addCustomResolver(new ChenilleRequestAttrParamArgumentResolver());
     }
 
-
+    @Bean
+    @ConditionalOnMissingBean
+    public ChenilleIpUtils chenilleIpUtils(){
+        return new ChenilleIpUtils();
+    }
 
     @Bean
     @Order(Ordered.HIGHEST_PRECEDENCE)
@@ -97,7 +101,7 @@ public class ChenilleAutoConfigWebFlux implements WebFluxConfigurer {
     @Bean
     @ConditionalOnMissingBean
     @ConditionalOnProperty(prefix = "chenille.config.auth.login", name = "enabled", havingValue = "true")
-    public ChenilleLoginUtils getChenilleLoginUtils(ChenilleProperties properties,
+    public ChenilleLoginUtils chenilleLoginUtils(ChenilleProperties properties,
                                                      @Autowired(required = false) ChenilleCacheUtils chenilleCacheUtils,
                                                     @Autowired(required = false) ChenilleJwtUtils chenilleJwtUtils,
                                                     ChenilleObjectUtils chenilleObjectUtils) {
