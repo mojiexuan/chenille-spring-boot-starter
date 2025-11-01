@@ -3,6 +3,7 @@ package com.chenjiabao.open.chenille.filter;
 import com.chenjiabao.open.chenille.enums.ChenilleResponseCode;
 import com.chenjiabao.open.chenille.exception.ChenilleChannelException;
 import lombok.NonNull;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.Ordered;
 import org.springframework.core.io.buffer.DataBuffer;
 import org.springframework.http.MediaType;
@@ -16,6 +17,7 @@ import java.nio.charset.StandardCharsets;
 /**
  * 处理 Mono 错误的 WebFilter
  */
+@Slf4j
 public class ChenilleMonoErrorFilter implements WebFilter, Ordered {
 
     @Override
@@ -24,6 +26,7 @@ public class ChenilleMonoErrorFilter implements WebFilter, Ordered {
                              @NonNull WebFilterChain chain) {
         return chain.filter(exchange)
                 .onErrorResume(ex -> {
+                    log.error("Mono 错误", ex);
                     exchange.getResponse().getHeaders().setContentType(MediaType.APPLICATION_JSON);
 
                     String json;
