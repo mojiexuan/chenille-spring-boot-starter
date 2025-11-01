@@ -42,7 +42,7 @@ import java.time.Duration;
 @EnableConfigurationProperties(ChenilleProperties.class)
 @EnableTransactionManagement
 @AutoConfigureAfter(ChenilleAutoConfigWebFlux.class)
-@ConditionalOnProperty(prefix = "chenille.config.transaction", name = "enabled", havingValue = "true", matchIfMissing = true)
+@ConditionalOnProperty(prefix = "chenille.config.transaction", name = "enabled", havingValue = "true")
 public class ChenilleAutoConfigTransaction {
 
     /**
