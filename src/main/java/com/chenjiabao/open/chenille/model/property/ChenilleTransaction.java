@@ -17,7 +17,7 @@ public class ChenilleTransaction {
     /**
      * 事务配置是否开启
      */
-    private boolean enabled = true;
+    private boolean enabled = false;
 
     /**
      * 默认事务超时时间
