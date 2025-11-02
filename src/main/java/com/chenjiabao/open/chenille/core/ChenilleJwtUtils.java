@@ -34,7 +34,10 @@ public class ChenilleJwtUtils {
                             ChenilleStringUtils chenilleStringUtils) {
         this.chenilleJwt = chenilleJwt;
         if (chenilleJsonUtils == null) {
-            throw new ChenilleChannelException("启用JWT功能需要同时启用 chenille.config.jackson.json.enabled=true");
+            throw ChenilleChannelException.builder()
+                    .logMessage("启用JWT功能需要同时启用 chenille.config.jackson.json.enabled=true")
+                    .build()
+                    .logError();
         }
         this.chenilleJsonUtils = chenilleJsonUtils;
         if (chenilleStringUtils.isEmpty(chenilleJwt.getSecret())) {
@@ -87,7 +90,11 @@ public class ChenilleJwtUtils {
                             .compact();
                 })
                 .onErrorResume(e ->
-                        Mono.error(new ChenilleChannelException("创建Token失败")));
+                        ChenilleChannelException.builder()
+                                        .userMessage("创建Token失败")
+                                                .logMessage("创建Token失败")
+                                                        .build()
+                                                                .toMono());
     }
 
     /**
@@ -103,7 +110,11 @@ public class ChenilleJwtUtils {
                         .parseSignedClaims(token)
                         .getPayload())
                 .onErrorResume(e ->
-                        Mono.error(new ChenilleChannelException("解析Token失败")));
+                        ChenilleChannelException.builder()
+                                        .userMessage("身份验证失败")
+                                                .logMessage("解析Token失败")
+                                                        .build()
+                                                                .toMono());
     }
 
     /**
@@ -119,7 +130,10 @@ public class ChenilleJwtUtils {
                         T obj = chenilleJsonUtils.fromJson(claims.getSubject(), clazz);
                         return Mono.just(obj);
                     } catch (Exception e) {
-                        return Mono.error(new ChenilleChannelException("从Token中获取subject失败"));
+                        return Mono.error(ChenilleChannelException.builder()
+                                        .userMessage("身份获取失败")
+                                                .logMessage("从Token中获取subject失败")
+                                                        .build());
                     }
                 });
     }

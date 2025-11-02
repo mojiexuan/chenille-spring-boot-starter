@@ -1,5 +1,6 @@
 package com.chenjiabao.open.chenille.common;
 
+import com.chenjiabao.open.chenille.core.ChenilleExponentialBackoffUtils;
 import com.chenjiabao.open.chenille.exception.ChenilleChannelException;
 import com.chenjiabao.open.chenille.model.ChenilleAccessToken;
 import com.chenjiabao.open.chenille.model.ChenilleOpenId;
@@ -27,8 +28,6 @@ public class ChenilleWeChatCommon {
     private final ChenilleWeChat weChat;
     // 维护accessToken，不用每次都刷新
     private static ChenilleAccessToken accessToken = null;
-    // 获取AccessToken失败次数
-    private int accessTokenFailCount = 0;
     private final WebClient webClient;
 
     public ChenilleWeChatCommon(ChenilleWeChat weChat){
@@ -57,18 +56,30 @@ public class ChenilleWeChatCommon {
                 .bodyToMono(ChenilleOpenId.class)
                 .flatMap(openId -> {
                     if (openId == null) {
-                        return Mono.error(new ChenilleChannelException("获取到的OpenId是空的！"));
+                        return ChenilleChannelException.builder()
+                                .userMessage("获取信息空")
+                                .logMessage("通过 code:[" + jsCode + "]获取到的OpenId是空的")
+                                .build()
+                                .logError()
+                                .toMono();
                     }
                     if (openId.getErrcode() == 0) {
                         return Mono.just(openId.getOpenid());
                     } else {
-                        return Mono.error(new ChenilleChannelException("获取OpenId失败：" + openId.getErrmsg()));
+                        return ChenilleChannelException.builder()
+                                .userMessage("获取身份失败")
+                                .logMessage("通过 code:[" + jsCode + "]获取OpenId失败:" + openId.getErrmsg())
+                                .build()
+                                .logError()
+                                .toMono();
                     }
                 })
-                .onErrorResume(e -> {
-                    log.error("获取微信端OpenId异常！", e);
-                    return Mono.error(new ChenilleChannelException("获取微信端OpenId异常！" + e.getMessage()));
-                });
+                .onErrorResume(e -> ChenilleChannelException.builder()
+                        .userMessage("获取身份异常")
+                        .logMessage("通过 code:[" + jsCode + "]获取OpenId异常:" + e.getMessage())
+                        .build()
+                        .logError()
+                        .toMono());
     }
 
     /**
@@ -113,14 +124,24 @@ public class ChenilleWeChatCommon {
                             || phoneNumber.getPhone_info() == null
                             || phoneNumber.getPhone_info().getPhoneNumber() == null
                             || phoneNumber.getPhone_info().getPhoneNumber().isEmpty()) {
-                        return Mono.error(new ChenilleChannelException("获取到的手机号是空的！"));
+                        return ChenilleChannelException.builder()
+                                .userMessage("获取手机号为空")
+                                .logMessage("通过code:[" + code + "],openid:[" + openid + "]获取到的手机号是空的！")
+                                .build()
+                                .logError()
+                                .toMono();
                     }
                     return Mono.just(phoneNumber.getPhone_info().getPhoneNumber());
                 })
                 // 异常处理
                 .onErrorResume(e -> {
                     log.error("获取微信端用户手机号异常！", e);
-                    return Mono.error(new ChenilleChannelException("获取微信端用户手机号异常！" + e.getMessage()));
+                    return ChenilleChannelException.builder()
+                            .userMessage("获取手机号异常")
+                            .logMessage("通过code:[" + code + "],openid:[" + openid + "]获取手机号异常：" + e.getMessage())
+                            .build()
+                            .logError()
+                            .toMono();
                 });
     }
 
@@ -195,12 +216,20 @@ public class ChenilleWeChatCommon {
      * 项目启动后轮训获取，在过期之前
      */
     public Mono<Void> requestAccessToken() {
-        if(accessTokenFailCount > 5){
-            log.error("获取AccessToken失败次数过多！向管理员报警！");
-            throw new ChenilleChannelException("高危报警\n获取AccessToken失败次数过多！\n严重影响正常业务！");
-        }
+        ChenilleExponentialBackoffUtils backoff = ChenilleExponentialBackoffUtils.builder()
+                .baseDelay(Duration.ofSeconds(5))   // 初始延迟
+                .maxDelay(Duration.ofMinutes(5))    // 最大延迟，达到后保持固定
+                .enableJitter(true)                 // 抖动机制，避免并发风暴
+                .maxAttempts(0)                     // 0 = 无限重试
+                .build();
+        return tryRequestAccessToken(backoff, 1);
+    }
+
+    /**
+     * 获取微信端AccessToken实际请求逻辑
+     */
+    private Mono<Void> tryRequestAccessToken(ChenilleExponentialBackoffUtils backoff, int attempt) {
         return webClient.post()
-                // 构建请求
                 .uri(weChat.getUrl().getAccessToken())
                 .contentType(MediaType.APPLICATION_FORM_URLENCODED)
                 .body(BodyInserters.fromFormData("appid", weChat.getAppId())
@@ -208,38 +237,39 @@ public class ChenilleWeChatCommon {
                         .with("grant_type", "client_credential"))
                 .retrieve()
                 .bodyToMono(ChenilleAccessToken.class)
-                // 核心业务逻辑
                 .flatMap(token -> {
                     if (token == null) {
-                        accessTokenFailCount++;
-                        log.error("获取 AccessToken 结果为空，准备重试...");
-                        return scheduleRetry();
+                        log.warn("第 {} 次获取 AccessToken 结果为空，准备退避重试...", attempt);
+                        return retryLater(backoff, attempt);
                     }
 
-                    // 成功：重置失败次数，保存 AccessToken
-                    accessTokenFailCount = 0;
+                    // ✅ 成功：保存 AccessToken
                     setAccessToken(token);
 
-                    // 计算延迟时间（提前5分钟刷新）
                     long delaySeconds = Math.max(token.getExpires_in() - 300, 300);
+                    log.info("✅ 成功获取 AccessToken，有效期 {} 秒，将在 {} 秒后自动刷新",
+                            token.getExpires_in(), delaySeconds);
+
+                    // 到期前5分钟自动刷新
                     return Mono.delay(Duration.ofSeconds(delaySeconds))
-                            .flatMap(tick -> requestAccessToken())
+                            .flatMap(t -> requestAccessToken())
                             .then();
                 })
-                // 捕获异常并进行重试
                 .onErrorResume(e -> {
-                    accessTokenFailCount++;
-                    log.error("获取 AccessToken 失败，准备重试", e);
-                    return scheduleRetry();
+                    log.error("第 {} 次获取 AccessToken 失败：{}", attempt, e.getMessage());
+                    return retryLater(backoff, attempt);
                 });
     }
 
     /**
-     * 失败后延迟重试
+     * 根据指数退避策略延迟重试（无次数上限）
      */
-    private Mono<Void> scheduleRetry() {
-        return Mono.delay(Duration.ofSeconds(10))
-                .flatMap(tick -> requestAccessToken())
+    private Mono<Void> retryLater(ChenilleExponentialBackoffUtils backoff, int attempt) {
+        Duration delay = backoff.nextDelay(attempt);
+        log.warn("将在 {} 秒后进行第 {} 次重试...", delay.toSeconds(), attempt + 1);
+
+        return Mono.delay(delay)
+                .flatMap(t -> tryRequestAccessToken(backoff, attempt + 1))
                 .then();
     }
 

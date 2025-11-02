@@ -27,7 +27,9 @@ public record ChenilleObjectUtils(ChenilleNumberUtils chenilleNumberUtils) {
     public <T> void requireNonNull(T obj, String message) {
         if (obj == null) {
             log.error(message);
-            throw new ChenilleChannelException(message);
+            throw  ChenilleChannelException.builder()
+                    .userMessage(message)
+                    .build();
         }
     }
 

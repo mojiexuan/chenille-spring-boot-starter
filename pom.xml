@@ -49,8 +49,9 @@
         <maven.compiler.target>21</maven.compiler.target>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <spring.boot.version>3.5.5</spring.boot.version>
-        <chenjiabao.jwt.version>0.13.0</chenjiabao.jwt.version>
-        <chenjiabao.jakarta.mail>2.0.3</chenjiabao.jakarta.mail>
+        <chenille.jwt.version>0.13.0</chenille.jwt.version>
+        <chenille.jakarta.mail>2.0.3</chenille.jakarta.mail>
+        <chenille.spring-asciidoctor-backends.version>0.0.7</chenille.spring-asciidoctor-backends.version>
     </properties>
 
     <!-- 依赖管理 -->
@@ -69,7 +70,7 @@
             <dependency>
                 <groupId>io.jsonwebtoken</groupId>
                 <artifactId>jjwt</artifactId>
-                <version>${chenjiabao.jwt.version}</version>
+                <version>${chenille.jwt.version}</version>
             </dependency>
 
         </dependencies>
@@ -99,7 +100,7 @@
         <dependency>
             <groupId>org.eclipse.angus</groupId>
             <artifactId>jakarta.mail</artifactId>
-            <version>${chenjiabao.jakarta.mail}</version>
+            <version>${chenille.jakarta.mail}</version>
         </dependency>
 
         <!-- jwt-->
@@ -285,6 +286,40 @@
                     <waitUntil>published</waitUntil>
 <!--                    <tokenAuth>true</tokenAuth>-->
                 </configuration>
+            </plugin>
+
+<!--            Asciidoctor Spring Backends-->
+            <plugin>
+                <groupId>org.asciidoctor</groupId>
+                <artifactId>asciidoctor-maven-plugin</artifactId>
+                <version>2.1.0</version>
+                <executions>
+                    <execution>
+                        <id>generate-html-documentation</id>
+                        <phase>prepare-package</phase>
+                        <goals>
+                            <goal>process-asciidoc</goal>
+                        </goals>
+                        <configuration>
+                            <backend>spring-html</backend>
+                        </configuration>
+                    </execution>
+                </executions>
+                <configuration>
+                    <headerFooter>true</headerFooter>
+                    <sourceDirectory>src/docs/asciidoc</sourceDirectory>
+                    <outputDirectory>target/docs/${project.version}</outputDirectory>
+                    <attributes>
+                        <sectnums>true</sectnums>
+                    </attributes>
+                </configuration>
+                <dependencies>
+                    <dependency>
+                        <groupId>io.spring.asciidoctor.backends</groupId>
+                        <artifactId>spring-asciidoctor-backends</artifactId>
+                        <version>${chenille.spring-asciidoctor-backends.version}</version>
+                    </dependency>
+                </dependencies>
             </plugin>
 
         </plugins>

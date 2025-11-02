@@ -237,27 +237,39 @@ public record ChenilleFilesUtils(ChenilleFile fileProperty,
      */
     public boolean checkFile(MultipartFile file) {
         if (file.isEmpty()) {
-            throw new ChenilleChannelException(ChenilleResponseCode.PARAM_ERROR, "文件为空");
+            throw ChenilleChannelException.builder()
+                    .userMessage("文件为空")
+                    .logMessage("文件为空")
+                    .build();
         }
 
         //获取文件名
         String fileName = file.getOriginalFilename();
 
         if (fileName == null || !fileName.contains(".")) {
-            throw new ChenilleChannelException(ChenilleResponseCode.PARAM_ERROR, "文件名异常");
+            throw ChenilleChannelException.builder()
+                    .userMessage("文件名异常")
+                    .logMessage("文件名异常")
+                    .build();
         }
 
         //获取文件后缀
         String fileSuffix = fileName.substring(fileName.lastIndexOf(".")).toLowerCase();
         //判断是否支持的类型
         if (!fileProperty.getFormat().contains(fileSuffix)) {
-            throw new ChenilleChannelException(ChenilleResponseCode.PARAM_ERROR, "文件格式不支持");
+            throw ChenilleChannelException.builder()
+                    .userMessage("文件格式不支持")
+                    .logMessage("文件格式不支持")
+                    .build();
         }
 
         long size = file.getSize();
         // 10MB
         if (size > fileProperty.getMaxSize()) {
-            throw new ChenilleChannelException(ChenilleResponseCode.PARAM_ERROR, "文件过大");
+            throw ChenilleChannelException.builder()
+                    .userMessage("文件过大")
+                    .logMessage("文件过大")
+                    .build();
         }
 
         return true;
@@ -292,7 +304,10 @@ public record ChenilleFilesUtils(ChenilleFile fileProperty,
 
         // 校验路径不越界（防止 ../../ 逃逸）
         if (!targetPath.startsWith(baseDir)) {
-            throw new ChenilleChannelException(ChenilleResponseCode.PARAM_ERROR, "非法文件路径");
+            throw ChenilleChannelException.builder()
+                    .userMessage("非法文件路径")
+                    .logMessage("非法文件路径")
+                    .build();
         }
 
         // 创建目录

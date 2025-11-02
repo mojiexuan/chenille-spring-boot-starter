@@ -229,7 +229,11 @@ public record ChenilleCacheUtils(ChenilleCache chenilleCache,
         return Mono.defer(() -> {
             ChenilleTwoLevelCache cache = getCache(cacheName);
             if (cache == null) {
-                return Mono.error(new ChenilleChannelException("缓存 '" + cacheName + "' 不存在"));
+                return ChenilleChannelException.builder()
+                        .logMessage("缓存 '" + cacheName + "' 不存在")
+                        .build()
+                        .logError()
+                        .toMono();
             }
             return function.apply(cache);
         });
@@ -252,7 +256,9 @@ public record ChenilleCacheUtils(ChenilleCache chenilleCache,
         try {
             return cacheManager.getTwoLevelCache(cacheName);
         } catch (Exception e) {
-            throw new ChenilleChannelException("获取缓存 '" + cacheName + "' 失败");
+            throw ChenilleChannelException.builder()
+                    .logMessage("获取缓存 '" + cacheName + "' 失败")
+                    .build();
         }
     }
 

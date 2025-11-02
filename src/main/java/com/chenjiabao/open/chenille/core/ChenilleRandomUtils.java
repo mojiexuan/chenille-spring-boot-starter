@@ -119,7 +119,10 @@ public class ChenilleRandomUtils {
      */
     public int randomInt(int min, int max,final boolean includeMin, final boolean includeMax) {
         if (min >= max) {
-            throw new ChenilleChannelException("最小值必须小于最大值");
+            throw ChenilleChannelException.builder()
+                    .userMessage("最小值必须小于最大值")
+                    .logMessage("最小值必须小于最大值")
+                    .build();
         }
         if(!includeMin){
             min++;
@@ -188,7 +191,10 @@ public class ChenilleRandomUtils {
      */
     public long randomLong(long min, long max, final boolean includeMin, final boolean includeMax) {
         if (min >= max) {
-            throw new ChenilleChannelException("最小值必须小于最大值");
+            throw ChenilleChannelException.builder()
+                    .userMessage("最小值必须小于最大值")
+                    .logMessage("最小值必须小于最大值")
+                    .build();
         }
         if(!includeMin){
             min++;
@@ -243,7 +249,10 @@ public class ChenilleRandomUtils {
      */
     public float randomFloat(float min, float max, final boolean includeMin, final boolean includeMax) {
         if (min >= max) {
-            throw new ChenilleChannelException("最小值必须小于最大值");
+            throw ChenilleChannelException.builder()
+                    .userMessage("最小值必须小于最大值")
+                    .logMessage("最小值必须小于最大值")
+                    .build();
         }
         if(!includeMin){
             min += 0.000001f;
@@ -298,7 +307,10 @@ public class ChenilleRandomUtils {
      */
     public double randomDouble(double min, double max, final boolean includeMin, final boolean includeMax) {
         if (min >= max) {
-            throw new ChenilleChannelException("最小值必须小于最大值");
+            throw ChenilleChannelException.builder()
+                    .userMessage("最小值必须小于最大值")
+                    .logMessage("最小值必须小于最大值")
+                    .build();
         }
         if(!includeMin){
             min += 0.000001d;

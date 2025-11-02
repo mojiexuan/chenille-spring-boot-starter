@@ -119,7 +119,9 @@ public class ChenilleResponseHandler extends ResponseBodyResultHandler implement
             Method dummy = ChenilleResponseHandler.class.getDeclaredMethod("__chenilleResponseDummy");
             bodyParameter = new MethodParameter(dummy, -1);
         } catch (NoSuchMethodException e) {
-            throw new ChenilleChannelException("数据包装失败", e);
+            throw ChenilleChannelException.builder()
+                    .logMessage("数据包装失败")
+                    .build();
         }
 
         MethodParameter actualParam = result.getReturnTypeSource();

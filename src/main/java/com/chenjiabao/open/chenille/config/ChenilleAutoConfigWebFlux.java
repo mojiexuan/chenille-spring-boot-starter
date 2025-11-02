@@ -79,16 +79,19 @@ public class ChenilleAutoConfigWebFlux implements WebFluxConfigurer {
             @Autowired(required = false) ChenilleCheckUtils chenilleCheckUtils,
             @Autowired(required = false) ChenilleJwtUtils chenilleJwtUtils) {
         if (chenilleAuthProvider == null) {
-            log.error("注入 ChenilleAuthFilterFlux Bean 失败 -> 启用 chenille.config.auth 时，你需要实现 ChenilleAuth 接口");
-            throw new ChenilleChannelException("注入 ChenilleAuthFilterFlux Bean 失败 -> 启用 chenille.config.auth 时，你需要实现 ChenilleAuth 接口");
+            throw ChenilleChannelException.builder()
+                    .logMessage("注入 ChenilleAuthFilterFlux Bean 失败 -> 启用 chenille.config.auth 时，你需要实现 ChenilleAuth 接口")
+                    .build();
         }
         if (chenilleCheckUtils == null) {
-            log.error("注入 ChenilleAuthFilterFlux Bean 失败 -> 启用 chenille.config.auth 时，需要同时启用 chenille.config.check");
-            throw new ChenilleChannelException("注入 ChenilleCheckUtils Bean 失败 -> 启用 chenille.config.auth 时，需要同时启用 chenille.config.check");
+            throw ChenilleChannelException.builder()
+                    .logMessage("注入 ChenilleAuthFilterFlux Bean 失败 -> 启用 chenille.config.auth 时，需要同时启用 chenille.config.check")
+                    .build();
         }
         if (chenilleJwtUtils == null) {
-            log.error("注入 ChenilleAuthFilterFlux Bean 失败 -> 启用 chenille.config.auth 时，需要同时启用 chenille.config.jwt");
-            throw new ChenilleChannelException("注入 ChenilleJwtUtils Bean 失败 -> 启用 chenille.config.auth 时，需要同时启用 chenille.config.jwt");
+            throw ChenilleChannelException.builder()
+                    .logMessage("注入 ChenilleAuthFilterFlux Bean 失败 -> 启用 chenille.config.auth 时，需要同时启用 chenille.config.jwt")
+                    .build();
         }
         return new ChenilleAuthFilterFlux(
                 chenilleProperties.getAuth(),
@@ -106,12 +109,14 @@ public class ChenilleAutoConfigWebFlux implements WebFluxConfigurer {
                                                     @Autowired(required = false) ChenilleJwtUtils chenilleJwtUtils,
                                                     ChenilleObjectUtils chenilleObjectUtils) {
         if (chenilleCacheUtils == null) {
-            log.error("注入 ChenilleLoginUtils Bean 失败 -> 启用 chenille.config.auth.login 时，需要同时启用 chenille.config.cache");
-            throw new ChenilleChannelException("注入 ChenilleCacheUtils Bean 失败 -> 启用 chenille.config.auth.login 时，需要同时启用 chenille.config.cache");
+            throw ChenilleChannelException.builder()
+                    .logMessage("注入 ChenilleLoginUtils Bean 失败 -> 启用 chenille.config.auth.login 时，需要同时启用 chenille.config.cache")
+                    .build();
         }
         if (chenilleJwtUtils == null) {
-            log.error("注入 ChenilleLoginUtils Bean 失败 -> 启用 chenille.config.auth.login 时，需要同时启用 chenille.config.jwt");
-            throw new ChenilleChannelException("注入 ChenilleJwtUtils Bean 失败 -> 启用 chenille.config.auth.login 时，需要同时启用 chenille.config.jwt");
+            throw ChenilleChannelException.builder()
+                    .logMessage("注入 ChenilleLoginUtils Bean 失败 -> 启用 chenille.config.auth.login 时，需要同时启用 chenille.config.jwt")
+                    .build();
         }
         return new ChenilleLoginUtils(
                 properties.getAuth().getLogin(),

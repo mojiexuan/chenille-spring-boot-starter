@@ -66,9 +66,10 @@ public record ChenilleLoginUtils(ChenilleLogin chenilleLogin,
     public Mono<String> refresh(@NonNull String token) {
         return extractUserId(token)
                 .flatMap(this::login)
-                .switchIfEmpty(Mono.error(new ChenilleChannelException(
-                        ChenilleResponseCode.UNAUTHORIZED,
-                        "凭证已失效，请重新登录")));
+                .switchIfEmpty(Mono.error(ChenilleChannelException.builder()
+                        .logMessage("凭证已失效，请重新登录")
+                        .code(ChenilleResponseCode.UNAUTHORIZED)
+                        .build()));
     }
 
     /**
@@ -121,15 +122,19 @@ public record ChenilleLoginUtils(ChenilleLogin chenilleLogin,
         return chenilleJwtUtils.isTokenValid(token)
                 .flatMap(isValid->{
                     if (!isValid) {
-                        return Mono.error(new ChenilleChannelException(
-                                ChenilleResponseCode.UNAUTHORIZED,
-                                "登录凭证失效"));
+                        return ChenilleChannelException.builder()
+                                .logMessage("登录凭证失效")
+                                .code(ChenilleResponseCode.UNAUTHORIZED)
+                                .build()
+                                .toMono();
                     }
                     String tokenKey = ChenilleInternalEnum.UserCacheKey.USER_KEY_TOKEN.getValue().formatted(token);
                     return chenilleCacheUtils.getRedisString(tokenKey)
-                            .switchIfEmpty(Mono.error(new ChenilleChannelException(
-                                    ChenilleResponseCode.UNAUTHORIZED,
-                                    "登录凭证不存在")));
+                            .switchIfEmpty(ChenilleChannelException.builder()
+                                    .logMessage("登录凭证不存在")
+                                    .code(ChenilleResponseCode.UNAUTHORIZED)
+                                    .build()
+                                    .toMono());
                 });
     }
 

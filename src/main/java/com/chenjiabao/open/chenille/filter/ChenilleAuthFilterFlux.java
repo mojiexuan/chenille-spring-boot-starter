@@ -144,7 +144,10 @@ public class ChenilleAuthFilterFlux implements WebFilter, Ordered {
      * 发送未授权响应
      */
     private Mono<Void> unauthorized() {
-        return Mono.error(new ChenilleChannelException(ChenilleResponseCode.FORBIDDEN, "权限不足，禁止访问"));
+        return Mono.error(ChenilleChannelException.builder()
+                        .logMessage("权限不足，禁止访问")
+                        .code(ChenilleResponseCode.FORBIDDEN)
+                        .build());
     }
 
     @Override

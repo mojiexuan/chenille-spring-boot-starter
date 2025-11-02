@@ -62,7 +62,9 @@ public class ChenilleServerResponse<T> implements Serializable {
         if(this.data instanceof Map){
             ((Map<String, Object>) this.data).put(key, value);
         }else {
-            throw new ChenilleChannelException("无法添加数据：'data' 不是 Map 类型");
+            throw ChenilleChannelException.builder()
+                    .logMessage("无法添加数据：'data' 不是 Map 类型")
+                    .build();
         }
         return this;
     }

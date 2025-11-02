@@ -149,8 +149,10 @@ public class ChenilleAutoConfigCache {
         public RedisCacheManager redisCacheManager(ChenilleProperties chenilleProperties,
                                                    @Autowired(required = false) RedisConnectionFactory redisConnectionFactory) {
             if (redisConnectionFactory == null) {
-                log.error("注入 RedisCacheManager Bean 失败 -> 启用 chenille.config.cache.redis 时，需要同时启用 spring.redis");
-                throw new ChenilleChannelException("注入 RedisCacheManager Bean 失败 -> 启用 chenille.config.cache.redis 时，需要同时启用 spring.redis");
+                throw ChenilleChannelException.builder()
+                        .logMessage("注入 RedisCacheManager Bean 失败 -> 启用 chenille.config.cache.redis 时，需要同时启用 spring.redis")
+                        .build()
+                        .logError();
             }
             ChenilleCacheRedis redis = chenilleProperties.getCache().getRedis();
 
@@ -227,8 +229,10 @@ public class ChenilleAutoConfigCache {
                                          @Autowired(required = false) ReactiveRedisTemplate<String, Object> reactiveRedisTemplate,
                                          @Autowired(required = false) ChenilleJsonUtils jsonUtils) {
         if (jsonUtils == null) {
-            log.error("注入 ChenilleCacheUtils Bean 失败 -> 启用 chenille.config.cache 时，需要同时启用 chenille.config.jackson.json");
-            throw new ChenilleChannelException("注入 ChenilleCacheUtils Bean 失败 -> 启用 chenille.config.cache 时，需要同时启用 chenille.config.jackson.json");
+            throw ChenilleChannelException.builder()
+                    .logMessage("注入 ChenilleCacheUtils Bean 失败 -> 启用 chenille.config.cache 时，需要同时启用 chenille.config.jackson.json")
+                    .build()
+                    .logError();
         }
         return new ChenilleCacheUtils(chenilleProperties.getCache(),
                 cacheManager,

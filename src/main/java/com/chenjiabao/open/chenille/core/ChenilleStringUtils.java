@@ -1,7 +1,7 @@
 package com.chenjiabao.open.chenille.core;
 
-import com.chenjiabao.open.chenille.ChenilleBeanHelper;
 import lombok.NonNull;
+import lombok.extern.slf4j.Slf4j;
 
 import java.awt.*;
 import java.awt.datatransfer.Clipboard;
@@ -10,11 +10,14 @@ import java.math.RoundingMode;
 import java.nio.charset.StandardCharsets;
 import java.text.DecimalFormat;
 import java.util.Base64;
+import java.util.HashMap;
+import java.util.Map;
 
 /**
  * 字符串工具类
  * @author ChenJiaBao
  */
+@Slf4j
 public class ChenilleStringUtils {
 
     /**
@@ -87,43 +90,6 @@ public class ChenilleStringUtils {
     }
 
     /**
-     * 生成随机指定范围字符串
-     *
-     * @param characters 指定范围如"ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
-     * @param num        长度
-     *
-     * @deprecated 从0.2.2开始，建议使用 {@link ChenilleRandomUtils#randomString(String, int)}
-     */
-    @Deprecated(since = "0.2.2",forRemoval = true)
-    public String generateSureString(String characters, int num) {
-        return ChenilleBeanHelper.get(ChenilleRandomUtils.class).randomString(characters, num);
-    }
-
-    /**
-     * 生成随机指定范围字符串 默认范围为"ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
-     *
-     * @param num 长度
-     *
-     * @deprecated 从0.2.2开始，建议使用 {@link ChenilleRandomUtils#randomNumberUpperString(int)}
-     */
-    @Deprecated(since = "0.2.2",forRemoval = true)
-    public String generateSureString(int num) {
-        return ChenilleBeanHelper.get(ChenilleRandomUtils.class).randomNumberUpperString(num);
-    }
-
-    /**
-     * 生成随机长度纯数字字符串
-     *
-     * @param length 长度
-     *
-     * @deprecated 从0.2.2开始，建议使用 {@link ChenilleRandomUtils#randomNumberString(int)}
-     */
-    @Deprecated(since = "0.2.2",forRemoval = true)
-    public String generateRandomNumberString(int length) {
-        return ChenilleBeanHelper.get(ChenilleRandomUtils.class).randomNumberString(length);
-    }
-
-    /**
      * 数量格式化，数量过大处理
      * @param num long型数量
      * @return 格式化后的字符串
@@ -178,4 +144,318 @@ public class ChenilleStringUtils {
         return phone.substring(0,3) + "****" + phone.substring(7);
     }
 
+    /**
+     * 文本模板格式化
+     * @param template 模板，使用 {} 作为占位符
+     * @param params 参数
+     * @return 格式化后的消息
+     */
+    public String format(String template, Object... params){
+        if(isEmpty(template) || params == null){
+            return template;
+        }
+        StringBuilder result = new StringBuilder();
+        int i = 0;
+        int templateLength = template.length();
+
+        for (int L = 0; L < templateLength; ++L) {
+            int j = template.indexOf("{}", i);
+
+            if (j == -1) {
+                if (i == 0) {
+                    return template;
+                }
+
+                result.append(template, i, template.length());
+                return result.toString();
+            }
+
+            if (isEscapedDelimiter(template, j)) {
+                if (!isDoubleEscaped(template, j)) {
+                    --L;
+                    result.append(template, i, j - 1);
+                    result.append('{');
+                    i = j + 1;
+                } else {
+                    result.append(template, i, j - 1);
+                    deeplyAppendParameter(result, params[L], new HashMap<>());
+                    i = j + 2;
+                }
+            } else {
+                result.append(template, i, j);
+                deeplyAppendParameter(result, params[L], new HashMap<>());
+                i = j + 2;
+            }
+        }
+
+        return result.toString();
+    }
+
+    /**
+     * 判断是否为转义符
+     *
+     * @param messagePattern 消息模式
+     * @param delimiterStartIndex 分隔符开始索引
+     * @return 是否为转义符
+     */
+    public boolean isEscapedDelimiter(String messagePattern, int delimiterStartIndex) {
+        if (delimiterStartIndex == 0) {
+            return false;
+        } else {
+            char potentialEscape = messagePattern.charAt(delimiterStartIndex - 1);
+            return potentialEscape == '\\';
+        }
+    }
+
+    /**
+     * 判断是否为双转义符
+     *
+     * @param messagePattern 消息模式
+     * @param delimiterStartIndex 分隔符开始索引
+     * @return 是否为双转义符
+     */
+    public boolean isDoubleEscaped(String messagePattern, int delimiterStartIndex) {
+        return delimiterStartIndex >= 2 && messagePattern.charAt(delimiterStartIndex - 2) == '\\';
+    }
+
+    /**
+     * 递归追加参数到 StringBuilder，处理循环引用
+     *
+     * @param stringBuilder StringBuilder
+     * @param o             参数对象
+     * @param seenMap       已处理对象映射，用于处理循环引用
+     */
+    public void deeplyAppendParameter(StringBuilder stringBuilder, Object o, Map<Object[], Object> seenMap) {
+        if (o == null) {
+            stringBuilder.append("null");
+        } else {
+            if (!o.getClass().isArray()) {
+                safeObjectAppend(stringBuilder, o);
+            } else if (o instanceof boolean[]) {
+                booleanArrayAppend(stringBuilder, (boolean[])o);
+            } else if (o instanceof byte[]) {
+                byteArrayAppend(stringBuilder, (byte[])o);
+            } else if (o instanceof char[]) {
+                charArrayAppend(stringBuilder, (char[])o);
+            } else if (o instanceof short[]) {
+                shortArrayAppend(stringBuilder, (short[])o);
+            } else if (o instanceof int[]) {
+                intArrayAppend(stringBuilder, (int[])o);
+            } else if (o instanceof long[]) {
+                longArrayAppend(stringBuilder, (long[])o);
+            } else if (o instanceof float[]) {
+                floatArrayAppend(stringBuilder, (float[])o);
+            } else if (o instanceof double[]) {
+                doubleArrayAppend(stringBuilder, (double[])o);
+            } else {
+                objectArrayAppend(stringBuilder, (Object[]) o, seenMap);
+            }
+
+        }
+    }
+
+    /**
+     * 安全追加 Object 到 StringBuilder，处理 toString() 异常
+     *
+     * @param stringBuilder StringBuilder
+     * @param o             Object
+     */
+    public void safeObjectAppend(StringBuilder stringBuilder, Object o) {
+        try {
+            String oAsString = o.toString();
+            stringBuilder.append(oAsString);
+        } catch (Throwable t) {
+            log.error("调用对象 toString() 失败 [{}]", o.getClass().getName(), t);
+            stringBuilder.append("[FAILED toString()]");
+        }
+
+    }
+
+        /**
+         * 追加 Object 数组到 StringBuilder
+         *
+         * @param stringBuilder StringBuilder
+         * @param a             Object 数组
+         * @param seenMap       已处理对象映射，用于处理循环引用
+         */
+        public void objectArrayAppend(StringBuilder stringBuilder, Object[] a, Map<Object[], Object> seenMap) {
+        stringBuilder.append('[');
+        if (!seenMap.containsKey(a)) {
+            seenMap.put(a, null);
+            int len = a.length;
+
+            for(int i = 0; i < len; ++i) {
+                deeplyAppendParameter(stringBuilder, a[i], seenMap);
+                if (i != len - 1) {
+                    stringBuilder.append(", ");
+                }
+            }
+
+            seenMap.remove(a);
+        } else {
+            stringBuilder.append("...");
+        }
+
+        stringBuilder.append(']');
+    }
+
+    /**
+     * 追加 boolean 数组到 StringBuilder
+     *
+     * @param stringBuilder StringBuilder
+     * @param a             boolean 数组
+     */
+    public void booleanArrayAppend(StringBuilder stringBuilder, boolean[] a) {
+        stringBuilder.append('[');
+        int len = a.length;
+
+        for(int i = 0; i < len; ++i) {
+            stringBuilder.append(a[i]);
+            if (i != len - 1) {
+                stringBuilder.append(", ");
+            }
+        }
+
+        stringBuilder.append(']');
+    }
+
+    /**
+     * 追加 byte 数组到 StringBuilder
+     *
+     * @param stringBuilder StringBuilder
+     * @param a             byte 数组
+     */
+    public void byteArrayAppend(StringBuilder stringBuilder, byte[] a) {
+        stringBuilder.append('[');
+        int len = a.length;
+
+        for(int i = 0; i < len; ++i) {
+            stringBuilder.append(a[i]);
+            if (i != len - 1) {
+                stringBuilder.append(", ");
+            }
+        }
+
+        stringBuilder.append(']');
+    }
+
+    /**
+     * 追加 char 数组到 StringBuilder
+     *
+     * @param stringBuilder StringBuilder
+     * @param a             char 数组
+     */
+    public void charArrayAppend(StringBuilder stringBuilder, char[] a) {
+        stringBuilder.append('[');
+        int len = a.length;
+
+        for(int i = 0; i < len; ++i) {
+            stringBuilder.append(a[i]);
+            if (i != len - 1) {
+                stringBuilder.append(", ");
+            }
+        }
+
+        stringBuilder.append(']');
+    }
+
+    /**
+     * 追加 short 数组到 StringBuilder
+     *
+     * @param stringBuilder StringBuilder
+     * @param a             short 数组
+     */
+    public void shortArrayAppend(StringBuilder stringBuilder, short[] a) {
+        stringBuilder.append('[');
+        int len = a.length;
+
+        for(int i = 0; i < len; ++i) {
+            stringBuilder.append(a[i]);
+            if (i != len - 1) {
+                stringBuilder.append(", ");
+            }
+        }
+
+        stringBuilder.append(']');
+    }
+
+    /**
+     * 追加 int 数组到 StringBuilder
+     *
+     * @param stringBuilder StringBuilder
+     * @param a             int 数组
+     */
+    public void intArrayAppend(StringBuilder stringBuilder, int[] a) {
+        stringBuilder.append('[');
+        int len = a.length;
+
+        for(int i = 0; i < len; ++i) {
+            stringBuilder.append(a[i]);
+            if (i != len - 1) {
+                stringBuilder.append(", ");
+            }
+        }
+
+        stringBuilder.append(']');
+    }
+
+    /**
+     * 追加 long 数组到 StringBuilder
+     *
+     * @param stringBuilder StringBuilder
+     * @param a             long 数组
+     */
+    public void longArrayAppend(StringBuilder stringBuilder, long[] a) {
+        stringBuilder.append('[');
+        int len = a.length;
+
+        for(int i = 0; i < len; ++i) {
+            stringBuilder.append(a[i]);
+            if (i != len - 1) {
+                stringBuilder.append(", ");
+            }
+        }
+
+        stringBuilder.append(']');
+    }
+
+    /**
+     * 追加 float 数组到 StringBuilder
+     *
+     * @param stringBuilder StringBuilder
+     * @param a             float 数组
+     */
+    public void floatArrayAppend(StringBuilder stringBuilder, float[] a) {
+        stringBuilder.append('[');
+        int len = a.length;
+
+        for(int i = 0; i < len; ++i) {
+            stringBuilder.append(a[i]);
+            if (i != len - 1) {
+                stringBuilder.append(", ");
+            }
+        }
+
+        stringBuilder.append(']');
+    }
+
+    /**
+     * 追加 double 数组到 StringBuilder
+     *
+     * @param stringBuilder StringBuilder
+     * @param a             double 数组
+     */
+    public void doubleArrayAppend(StringBuilder stringBuilder, double[] a) {
+        stringBuilder.append('[');
+        int len = a.length;
+
+        for(int i = 0; i < len; ++i) {
+            stringBuilder.append(a[i]);
+            if (i != len - 1) {
+                stringBuilder.append(", ");
+            }
+        }
+
+        stringBuilder.append(']');
+    }
 }
