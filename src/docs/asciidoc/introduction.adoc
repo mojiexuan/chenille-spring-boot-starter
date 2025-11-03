@@ -1,0 +1,80 @@
+[[introduction]]
+=== 系统简介
+
+Chenille是一个基于Spring Boot 3.x的开源开发工具集，旨在为Java开发者提供一套完整、高效、易用的开发框架和工具组件。项目名称"Chenille"源自法语，意为"毛虫"，象征着从基础到成熟的渐进式发展理念。
+
+==== 项目定位
+Chenille致力于成为Spring Boot生态系统中的核心工具库，通过自动配置、注解驱动、模块化设计等现代开发理念，大幅提升开发效率和代码质量。
+
+==== 核心特性
+
+.开箱即用的自动配置
+* 基于Spring Boot自动配置机制，零配置即可使用
+* 支持条件化配置，按需加载功能模块
+* 提供完整的配置元数据，IDE友好
+
+.多层级缓存解决方案
+* 支持本地缓存(Caffeine)与分布式缓存(Redis)的双层缓存
+* 提供注解驱动的缓存操作(@ChenilleCacheable, @ChenilleCacheEvict)
+* 支持缓存失效监听和分布式同步
+
+.完整的Web开发支持
+* 统一的响应格式处理
+* 版本化API支持(@ChenilleApiVersion)
+* 跨域处理、认证过滤等Web基础功能
+* 同时支持Servlet和WebFlux响应式编程
+
+.丰富的工具类库
+* 字符串处理、集合操作、数值计算等基础工具
+* JWT令牌生成与验证
+* 邮件发送、文件操作、敏感词过滤等实用功能
+* 雪花算法ID生成器
+
+.企业级功能组件
+* 参数校验框架(手机号、数字字符串等)
+* 异步任务执行器
+* 微信生态集成支持
+* 文档自动生成系统
+
+==== 技术架构
+
+[cols="1,3", options="header"]
+|===
+| 层级 | 技术组件
+| 基础框架 | Spring Boot 3.5.5、Java 21
+| Web框架 | Spring MVC、WebFlux
+| 缓存层 | Caffeine、Redis
+| 数据校验 | Bean Validation
+| 工具库 | Jackson、JJWT、Lombok
+| 文档生成 | AsciiDoc
+|===
+
+==== 模块结构
+
+[source,text]
+----
+chenille-spring-boot-starter/
+├── config/           # 自动配置模块
+├── core/             # 核心工具类
+├── cache/            # 缓存组件
+├── web/              # Web相关组件
+├── validator/        # 参数校验
+├── docs/             # 文档生成
+└── common/           # 通用组件
+----
+
+==== 设计原则
+
+.模块化设计
+每个功能模块独立封装，支持按需引入
+
+.注解驱动开发
+通过注解简化配置，提升开发体验
+
+.性能优先
+缓存优化、异步处理等性能考量
+
+.企业级标准
+遵循Spring生态最佳实践，确保生产可用性
+
+Chenille项目采用Apache 2.0开源协议，欢迎社区贡献和反馈，共同打造更完善的Spring Boot开发生态。
